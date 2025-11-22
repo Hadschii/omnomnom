@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'ingredient.dart';
+import 'instruction.dart';
 
 part 'recipe.g.dart';
 
@@ -15,7 +16,7 @@ class Recipe {
   final List<Ingredient> ingredients;
 
   @HiveField(3)
-  final List<String> instructions;
+  final List<Instruction> instructions;
 
   @HiveField(4)
   final String? folderId;
@@ -29,6 +30,15 @@ class Recipe {
   @HiveField(7)
   final String? imagePath;
 
+  @HiveField(8)
+  final int? servings;
+
+  @HiveField(9)
+  final int? prepTime; // in minutes
+
+  @HiveField(10)
+  final int? cookTime; // in minutes
+
   Recipe({
     required this.id,
     required this.title,
@@ -38,5 +48,8 @@ class Recipe {
     required this.labels,
     required this.createdAt,
     this.imagePath,
+    this.servings,
+    this.prepTime,
+    this.cookTime,
   });
 }

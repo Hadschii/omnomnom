@@ -7,8 +7,12 @@ import 'blocs/folder/folder_bloc.dart';
 import 'blocs/folder/folder_event.dart';
 import 'blocs/recipe/recipe_bloc.dart';
 import 'blocs/recipe/recipe_event.dart';
+import 'blocs/settings/settings_bloc.dart';
+import 'blocs/settings/settings_event.dart';
+import 'blocs/settings/settings_state.dart';
 import 'models/folder.dart';
 import 'models/ingredient.dart';
+import 'models/instruction.dart';
 import 'models/recipe.dart';
 import 'repositories/folder_repository.dart';
 import 'repositories/recipe_repository.dart';
@@ -24,6 +28,7 @@ void main() async {
 
   // Register Adapters
   Hive.registerAdapter(IngredientAdapter());
+  Hive.registerAdapter(InstructionAdapter());
   Hive.registerAdapter(FolderAdapter());
   Hive.registerAdapter(RecipeAdapter());
 
@@ -69,14 +74,21 @@ class OmnomnomApp extends StatelessWidget {
               folderRepository: folderRepository,
             )..add(LoadFolders()),
           ),
+          BlocProvider(
+            create: (context) => SettingsBloc()..add(LoadSettings()),
+          ),
         ],
-        child: MaterialApp.router(
-          title: 'Omnomnom',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.system,
-          routerConfig: router,
-          debugShowCheckedModeBanner: false,
+        child: BlocBuilder<SettingsBloc, SettingsState>(
+          builder: (context, state) {
+            return MaterialApp.router(
+              title: 'OmNomNom',
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: state.themeMode,
+              routerConfig: router,
+              debugShowCheckedModeBanner: false,
+            );
+          },
         ),
       ),
     );

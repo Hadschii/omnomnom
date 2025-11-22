@@ -9,8 +9,15 @@ import '../models/recipe.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
   final String recipeId;
+  final bool showBackButton;
+  final VoidCallback? onBack;
 
-  const RecipeDetailScreen({super.key, required this.recipeId});
+  const RecipeDetailScreen({
+    super.key,
+    required this.recipeId,
+    this.showBackButton = true,
+    this.onBack,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +41,13 @@ class RecipeDetailScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
+            automaticallyImplyLeading: showBackButton,
+            leading: onBack != null
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: onBack,
+                  )
+                : null,
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit),
@@ -91,6 +105,19 @@ class RecipeDetailScreen extends StatelessWidget {
                           ),
                     ),
               const SizedBox(height: 16),
+              if (recipe.servings != null || recipe.prepTime != null || recipe.cookTime != null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (recipe.servings != null)
+                      _buildInfoColumn(context, Icons.people, '${recipe.servings} Servings'),
+                    if (recipe.prepTime != null)
+                      _buildInfoColumn(context, Icons.timer, '${recipe.prepTime}m Prep'),
+                    if (recipe.cookTime != null)
+                      _buildInfoColumn(context, Icons.kitchen, '${recipe.cookTime}m Cook'),
+                  ],
+                ),
+              const SizedBox(height: 16),
               if (recipe.labels.isNotEmpty)
                 Wrap(
                   spacing: 8,
@@ -104,58 +131,14 @@ class RecipeDetailScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              ...recipe.ingredients.map((ingredient) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(ingredient.name, style: Theme.of(context).textTheme.bodyLarge),
-                      if (ingredient.amount.isNotEmpty)
-                        Text(
-                          ingredient.amount,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                        ),
-                    ],
-                  ),
-                );
-              }),
+              ..._buildGroupedIngredients(context, recipe),
               const SizedBox(height: 32),
               Text(
                 'Instructions',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-              ...recipe.instructions.asMap().entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        child: Text(
-                          '${entry.key + 1}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          entry.value,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+              ..._buildGroupedInstructions(context, recipe),
                   ],
                 ),
               ),
@@ -164,5 +147,99 @@ class RecipeDetailScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+
+
+  Widget _buildInfoColumn(BuildContext context, IconData icon, String text) {
+    return Column(
+      children: [
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 4),
+        Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  List<Widget> _buildGroupedIngredients(BuildContext context, Recipe recipe) {
+    final grouped = <String?, List<dynamic>>{};
+    for (var i in recipe.ingredients) {
+      grouped.putIfAbsent(i.group, () => []).add(i);
+    }
+
+    return grouped.entries.expand((entry) {
+      return [
+        if (entry.key != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 8),
+            child: Text(entry.key!, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+        ...entry.value.map((ingredient) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(ingredient.name, style: Theme.of(context).textTheme.bodyLarge),
+                  if (ingredient.amount.isNotEmpty)
+                    Text(
+                      ingredient.amount,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                    ),
+                ],
+              ),
+            )),
+      ];
+    }).toList();
+  }
+
+  List<Widget> _buildGroupedInstructions(BuildContext context, Recipe recipe) {
+    final grouped = <String?, List<dynamic>>{};
+    for (var i in recipe.instructions) {
+      grouped.putIfAbsent(i.group, () => []).add(i);
+    }
+
+    var stepCount = 1;
+    return grouped.entries.expand((entry) {
+      return [
+        if (entry.key != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 8),
+            child: Text(entry.key!, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+        ...entry.value.map((instruction) {
+          final currentStep = stepCount++;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: Text(
+                    '$currentStep',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(instruction.description, style: Theme.of(context).textTheme.bodyLarge),
+                      if (instruction.photoPath != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Image.file(File(instruction.photoPath!), height: 150),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ];
+    }).toList();
   }
 }

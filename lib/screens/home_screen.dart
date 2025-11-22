@@ -20,7 +20,7 @@ class HomeScreen extends StatelessWidget {
               height: 32,
             ),
             const SizedBox(width: 12),
-            const Text('Omnomnom'),
+            const Text('OmNomNom'),
           ],
         ),
         actions: [
@@ -32,47 +32,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocBuilder<RecipeBloc, RecipeState>(
-        builder: (context, state) {
-          if (state is RecipeLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is RecipeLoaded) {
-            if (state.recipes.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.restaurant_menu, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No recipes yet',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => context.go('/recipe/new'),
-                      child: const Text('Create your first recipe'),
-                    ),
-                  ],
-                ),
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.recipes.length,
-              itemBuilder: (context, index) {
-                final recipe = state.recipes[index];
-                return _RecipeCard(recipe: recipe);
-              },
-            );
-          } else if (state is RecipeError) {
-            return Center(child: Text(state.message));
-          }
-          return const SizedBox();
-        },
-      ),
+      body: const RecipeList(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/recipe/new'),
         child: const Icon(Icons.add),
@@ -81,10 +41,71 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class RecipeList extends StatelessWidget {
+  final Function(Recipe)? onRecipeSelected;
+
+  const RecipeList({super.key, this.onRecipeSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<RecipeBloc, RecipeState>(
+      builder: (context, state) {
+        if (state is RecipeLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is RecipeLoaded) {
+          if (state.recipes.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.restaurant_menu, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No recipes yet',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => context.go('/recipe/new'),
+                    child: const Text('Create your first recipe'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: state.recipes.length,
+            itemBuilder: (context, index) {
+              final recipe = state.recipes[index];
+              return _RecipeCard(
+                recipe: recipe,
+                onTap: () {
+                  if (onRecipeSelected != null) {
+                    onRecipeSelected!(recipe);
+                  } else {
+                    context.go('/recipe/${recipe.id}');
+                  }
+                },
+              );
+            },
+          );
+        } else if (state is RecipeError) {
+          return Center(child: Text(state.message));
+        }
+        return const SizedBox();
+      },
+    );
+  }
+}
+
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
+  final VoidCallback onTap;
 
-  const _RecipeCard({required this.recipe});
+  const _RecipeCard({required this.recipe, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +113,7 @@ class _RecipeCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias, // Clip image to card
       child: InkWell(
-        onTap: () => context.go('/recipe/${recipe.id}'),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,3 +169,4 @@ class _RecipeCard extends StatelessWidget {
     );
   }
 }
+

@@ -10,5 +10,12 @@ class Ingredient {
   @HiveField(1)
   final String amount;
 
-  Ingredient({required this.name, required this.amount});
+  @HiveField(2)
+  final String? group;
+
+  Ingredient({
+    required this.name,
+    required this.amount,
+    this.group,
+  });
 }

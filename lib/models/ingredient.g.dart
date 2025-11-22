@@ -19,17 +19,20 @@ class IngredientAdapter extends TypeAdapter<Ingredient> {
     return Ingredient(
       name: fields[0] as String,
       amount: fields[1] as String,
+      group: fields[2] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Ingredient obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.amount);
+      ..write(obj.amount)
+      ..writeByte(2)
+      ..write(obj.group);
   }
 
   @override
