@@ -13,6 +13,11 @@ class RecipeBloc extends Bloc<RecipeEvent, RecipeState> {
     on<AddRecipe>(_onAddRecipe);
     on<UpdateRecipe>(_onUpdateRecipe);
     on<DeleteRecipe>(_onDeleteRecipe);
+    
+    // Listen to sync completion events
+    _recipeRepository.onSyncCompleted.listen((_) {
+      add(LoadRecipes());
+    });
   }
 
   void _onLoadRecipes(LoadRecipes event, Emitter<RecipeState> emit) {

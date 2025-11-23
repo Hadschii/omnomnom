@@ -75,7 +75,9 @@ class OmnomnomApp extends StatelessWidget {
             )..add(LoadFolders()),
           ),
           BlocProvider(
-            create: (context) => SettingsBloc()..add(LoadSettings()),
+            create: (context) => SettingsBloc(
+              recipeRepository: recipeRepository,
+            )..add(LoadSettings()),
           ),
         ],
         child: BlocBuilder<SettingsBloc, SettingsState>(

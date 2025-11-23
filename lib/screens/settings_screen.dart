@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/settings/settings_bloc.dart';
 import '../blocs/settings/settings_state.dart';
+import '../blocs/settings/settings_event.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -38,12 +39,65 @@ class SettingsList extends StatelessWidget {
         _buildSectionHeader(context, 'General'),
         BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, state) {
-            return ListTile(
-              leading: const Icon(Icons.brightness_6),
-              title: const Text('Theme'),
-              subtitle: Text(_getThemeModeName(state.themeMode)),
-              onTap: () => onTap('theme'),
-              trailing: const Icon(Icons.chevron_right),
+            return Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.brightness_6),
+                  title: const Text('Theme'),
+                  subtitle: Text(_getThemeModeName(state.themeMode)),
+                  onTap: () => onTap('theme'),
+                  trailing: const Icon(Icons.chevron_right),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.cloud_sync),
+                  title: const Text('Cloud Sync'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Sync recipes across devices'),
+                      if (state.isSyncEnabled && state.lastSyncDate != null)
+                        Text(
+                          'Last synced: ${_formatDate(state.lastSyncDate!)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                  value: state.isSyncEnabled,
+                  onChanged: (value) {
+                    if (value) {
+                      _showSyncConfirmationDialog(context);
+                    } else {
+                      context.read<SettingsBloc>().add(const ToggleSync(false));
+                    }
+                  },
+                ),
+                if (state.isSyncEnabled) ...[
+                  ListTile(
+                    leading: const Icon(Icons.cloud_upload),
+                    title: const Text('Push to Cloud'),
+                    subtitle: const Text('Upload local recipes to cloud'),
+                    onTap: () {
+                      context.read<SettingsBloc>().add(const TriggerPushSync());
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pushing to cloud...')),
+                      );
+                    },
+                    trailing: const Icon(Icons.chevron_right),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.cloud_download),
+                    title: const Text('Pull from Cloud'),
+                    subtitle: const Text('Download recipes from cloud (Overwrites local)'),
+                    onTap: () {
+                      context.read<SettingsBloc>().add(const TriggerPullSync());
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pulling from cloud...')),
+                      );
+                    },
+                    trailing: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ],
             );
           },
         ),
@@ -56,6 +110,40 @@ class SettingsList extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _showSyncConfirmationDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Enable Cloud Sync?'),
+          content: const Text(
+            'Enabling sync will overwrite all local recipes with data from the cloud. '
+            'This action cannot be undone.\n\n'
+            'Are you sure you want to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Enable & Overwrite'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<SettingsBloc>().add(const ToggleSync(true));
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {

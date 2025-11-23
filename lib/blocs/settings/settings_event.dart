@@ -18,3 +18,29 @@ class UpdateThemeMode extends SettingsEvent {
   @override
   List<Object> get props => [themeMode];
 }
+
+class ToggleSync extends SettingsEvent {
+  final bool isEnabled;
+
+  const ToggleSync(this.isEnabled);
+
+  @override
+  List<Object> get props => [isEnabled];
+}
+
+class UpdateLastSyncDate extends SettingsEvent {
+  final DateTime lastSyncDate;
+
+  const UpdateLastSyncDate(this.lastSyncDate);
+
+  @override
+  List<Object> get props => [lastSyncDate];
+}
+
+class TriggerPushSync extends SettingsEvent {
+  const TriggerPushSync();
+}
+
+class TriggerPullSync extends SettingsEvent {
+  const TriggerPullSync();
+}
