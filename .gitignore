@@ -1,3 +1,6 @@
+# Python virtualenv
+.venv/
+
 # Gradle files
 .gradle/
 build/
