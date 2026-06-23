@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/ingredient.dart';
-import '../models/instruction.dart';
 
 abstract class ListItem {
   final String id;

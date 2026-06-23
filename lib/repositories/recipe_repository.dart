@@ -42,31 +42,59 @@ class RecipeRepository {
 
   Future<void> addRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    if (_isSyncEnabled && _syncService != null) {
-      await _syncService!.uploadRecipe(recipe);
-      if (recipe.imagePath != null) {
-        await _syncService!.uploadImage(recipe.imagePath!);
-      }
-      _syncCompletedController.add(DateTime.now()); // Emit event
-    }
+    await _trySyncUpload(recipe);
   }
 
   Future<void> updateRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    if (_isSyncEnabled && _syncService != null) {
-      await _syncService!.uploadRecipe(recipe);
-      if (recipe.imagePath != null) {
-        await _syncService!.uploadImage(recipe.imagePath!);
-      }
-      _syncCompletedController.add(DateTime.now()); // Emit event
-    }
+    await _trySyncUpload(recipe);
   }
 
   Future<void> deleteRecipe(String id) async {
     await _box.delete(id);
     if (_isSyncEnabled && _syncService != null) {
-      await _syncService!.deleteRecipe(id);
-      _syncCompletedController.add(DateTime.now()); // Emit event
+      try {
+        await _syncService!.deleteRecipe(id);
+        _syncCompletedController.add(DateTime.now());
+      } catch (e) {
+        print('RecipeRepository: Non-fatal sync error in deleteRecipe: $e');
+      }
+    }
+  }
+
+  // Sync upload that never throws — local write already succeeded.
+  Future<void> _trySyncUpload(Recipe recipe) async {
+    if (!_isSyncEnabled || _syncService == null) return;
+    try {
+      await _syncService!.uploadRecipe(recipe);
+      if (recipe.imagePath != null) {
+        await _syncService!.uploadImage(recipe.imagePath!);
+      }
+      _syncCompletedController.add(DateTime.now());
+    } catch (e) {
+      print('RecipeRepository: Non-fatal sync error uploading ${recipe.id}: $e');
+    }
+  }
+
+  Future<void> removeFolderIdFromRecipes(String folderId) async {
+    final recipes = getRecipes();
+    for (final recipe in recipes) {
+      if (recipe.folderId == folderId) {
+        final updatedRecipe = Recipe(
+          id: recipe.id,
+          title: recipe.title,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+          folderId: null,
+          labels: recipe.labels,
+          createdAt: recipe.createdAt,
+          imagePath: recipe.imagePath,
+          servings: recipe.servings,
+          prepTime: recipe.prepTime,
+          cookTime: recipe.cookTime,
+        );
+        await updateRecipe(updatedRecipe);
+      }
     }
   }
 
@@ -105,6 +133,7 @@ class RecipeRepository {
 
       // 2. Download and map images for recipes (if any download fails, local DB is still untouched)
       final Map<String, String> downloadedImages = {};
+      final Map<String, Map<int, String>> downloadedInstructionImages = {};
       for (final recipe in cloudRecipes) {
         if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
           try {
@@ -118,6 +147,21 @@ class RecipeRepository {
             // Do not fail the whole sync if a single image fails to download
           }
         }
+
+        for (int i = 0; i < recipe.instructions.length; i++) {
+          final instruction = recipe.instructions[i];
+          if (instruction.photoPath != null && instruction.photoPath!.isNotEmpty) {
+            try {
+              print('RecipeRepository: Downloading image for instruction $i of recipe ${recipe.title}: ${instruction.photoPath}');
+              final localImagePath = await _syncService!.downloadImage(instruction.photoPath!);
+              if (localImagePath != null) {
+                downloadedInstructionImages.putIfAbsent(recipe.id, () => {})[i] = localImagePath;
+              }
+            } catch (e) {
+              print('RecipeRepository: Non-fatal error downloading instruction image for ${recipe.title}: $e');
+            }
+          }
+        }
       }
 
       // 3. Wiping local and writing new data inside a safe local block
@@ -127,11 +171,23 @@ class RecipeRepository {
       for (final recipe in cloudRecipes) {
         final localImagePath = downloadedImages[recipe.id];
         
+        final updatedInstructions = <Instruction>[];
+        final recipeInstImages = downloadedInstructionImages[recipe.id];
+        for (int i = 0; i < recipe.instructions.length; i++) {
+          final inst = recipe.instructions[i];
+          final localInstPhotoPath = recipeInstImages?[i];
+          updatedInstructions.add(Instruction(
+            description: inst.description,
+            group: inst.group,
+            photoPath: localInstPhotoPath ?? inst.photoPath,
+          ));
+        }
+
         final updatedRecipe = Recipe(
           id: recipe.id,
           title: recipe.title,
           ingredients: recipe.ingredients,
-          instructions: recipe.instructions,
+          instructions: updatedInstructions,
           folderId: recipe.folderId,
           labels: recipe.labels,
           createdAt: recipe.createdAt,
@@ -164,6 +220,11 @@ class RecipeRepository {
         await _syncService!.uploadRecipe(recipe);
         if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
           await _syncService!.uploadImage(recipe.imagePath!);
+        }
+        for (final instruction in recipe.instructions) {
+          if (instruction.photoPath != null && instruction.photoPath!.isNotEmpty) {
+            await _syncService!.uploadImage(instruction.photoPath!);
+          }
         }
       }
       _syncCompletedController.add(DateTime.now());

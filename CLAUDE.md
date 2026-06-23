@@ -115,8 +115,8 @@ The box was renamed at some point (likely a schema change). If you add a non-nul
 **iCloud container ID is a placeholder**
 `ICloudSyncService._containerId = 'iCloud.com.example.omnomnom'` must be replaced with the actual provisioned iCloud container ID before iOS/macOS sync will work at all.
 
-**`ingredient.group` and `instruction.group` are not synced**
-Both `_recipeToJson` methods (Google Drive and iCloud) serialize `ingredients` as `{name, amount}` and `instructions` as `{description}` — the `group` field is dropped. Grouped recipes lose their section structure after a cloud round-trip.
+**`ingredient.group`, `instruction.group`, and `instruction.photoPath` are fully synced**
+Both sync services serialize all three fields. `instruction.photoPath` is stored filename-only in JSON and resolved back to an absolute local path by `RecipeRepository.syncFromCloud()` (same pattern as `recipe.imagePath`).
 
 **`_isSyncEnabled` is in-memory only**
 `RecipeRepository._isSyncEnabled` is a plain `bool` field, not persisted. On app restart, it starts as `false`. The actual persisted value lives in the Hive `settings` box, managed by `SettingsBloc.LoadSettings`, which calls `RecipeRepository.enableSync()` or `disableSync()` on startup to reconcile.
@@ -130,11 +130,11 @@ On add/update/delete with sync enabled, `RecipeRepository` emits `onSyncComplete
 **`HomeScreen` and `RecipeList` live in the same file**
 `lib/screens/home_screen.dart` exports both `HomeScreen` and `RecipeList`. `RecipeList` is reused in `MainScreen`'s desktop layout. `SettingsList` is similarly defined in `settings_screen.dart` and reused in `MainScreen`.
 
-**Search is not implemented**
-The search `IconButton` in `HomeScreen`'s AppBar has a `TODO` and does nothing.
+**Search filters title + labels + ingredient names**
+`HomeScreen` is a `StatefulWidget` with `_isSearching` / `_searchQuery` state. The AppBar swaps to a `TextField` when active. `RecipeList` accepts a `searchQuery` parameter and filters inline before rendering. The desktop left pane in `MainScreen` has a persistent inline search field wired to `_desktopSearchQuery`.
 
-**Folder management is incomplete**
-Folders can be created from the `RecipeEditScreen` form, but there is no UI to rename or delete folders.
+**Folder management lives in `FoldersSettingsScreen`**
+Accessible via Settings → Manage Folders (route `/settings/folders`). Supports create, rename, edit color, and delete. On delete, `RecipeRepository.removeFolderIdFromRecipes()` sets `folderId = null` on all affected recipes (moves them to Inbox), then `RecipeBloc.add(LoadRecipes())` is called to refresh the UI. Desktop right pane renders `FoldersSettingsScreen` directly when `_selectedSetting == 'folders'`.
 
 **Desktop layout does not navigate via router**
 In the desktop two-pane layout, clicking a recipe calls `setState(() { _selectedRecipeId = recipe.id; })` on `MainScreen` — it does not push a route. The router is only used for mobile navigation and full-page screens (edit, theme settings, about).

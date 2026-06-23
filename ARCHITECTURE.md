@@ -167,7 +167,7 @@ The root shell for all navigation. Manages `_selectedIndex` (tab) and `_selected
 - Expanded right pane: `RecipeDetailScreen`, theme/about content, or a logo placeholder.
 
 ### `HomeScreen`
-AppBar with logo + search icon (search not yet implemented), `RecipeList` in body, FAB navigates to `/recipe/new`.
+`StatefulWidget` with `_isSearching` / `_searchQuery` / `_searchController` state. AppBar title swaps between the logo row and a `TextField` when search is active; the X button clears and closes search. `RecipeList` receives `searchQuery` and filters live.
 
 ### `RecipeDetailScreen`
 - Looks up the recipe by `recipeId` from `RecipeBloc` state.
@@ -188,6 +188,9 @@ AppBar with logo + search icon (search not yet implemented), `RecipeList` in bod
 - `BlocListener` shows SnackBars for `SyncStatus.loading/success/failure`.
 - The loading SnackBar has `duration: Duration(days: 1)` (effectively infinite) and is dismissed when the next status arrives.
 
+### `FoldersSettingsScreen`
+Folder management: list of folders from `FolderBloc`, each with a colored `CircleAvatar`, edit (pencil) and delete (trash) icons. FAB opens the create dialog. Delete confirms via `AlertDialog`, then calls `RecipeRepository.removeFolderIdFromRecipes()` + `FolderBloc.add(DeleteFolder)` + `RecipeBloc.add(LoadRecipes())`. The create/edit dialog has a name `TextField` and a 10-swatch color picker (`Wrap` of circle `GestureDetector`s) using `StatefulBuilder` to update selection state without closing the dialog.
+
 ### `ThemeSettingsScreen` / `AboutSettingsScreen`
 Thin wrappers that add a Scaffold + AppBar around `ThemeSelector` and `AboutView` respectively.
 
@@ -197,7 +200,7 @@ Thin wrappers that add a Scaffold + AppBar around `ThemeSelector` and `AboutView
 
 | Widget | File | Notes |
 |--------|------|-------|
-| `RecipeList` | `home_screen.dart` | `BlocBuilder<RecipeBloc>`, optional `onRecipeSelected` callback for desktop |
+| `RecipeList` | `home_screen.dart` | `BlocBuilder<RecipeBloc>`, optional `onRecipeSelected` callback for desktop, `searchQuery` string for live filtering |
 | `_RecipeCard` | `home_screen.dart` | Private; card with optional cover image + label chips |
 | `SettingsList` | `settings_screen.dart` | Reused in `MainScreen` desktop right pane; `onTap(String)` callback |
 | `ThemeSelector` | `widgets/theme_selector.dart` | RadioListTile × 3; dispatches `UpdateThemeMode` |
@@ -221,16 +224,16 @@ Future<String?> downloadImage(String imageName);
 
 ### `GoogleDriveSyncService` (Android)
 - Uses `googleapis` Drive v3 API with the `driveAppdataScope` — data is stored in the app's private `appDataFolder`, invisible to users in Drive UI.
-- Auth flow: `GoogleSignIn.instance` → `attemptLightweightAuthentication()` → falls back to `authenticate()` (interactive).
+- Auth flow: `GoogleSignIn.instance` → `attemptLightweightAuthentication()` → falls back to `authenticate()` (interactive). For Drive scope, tries `authorizationForScopes` (silent) first, then `authorizeScopes` (interactive) via the `extension_google_sign_in_as_googleapis_auth` v3.0.0 API.
 - Each recipe is stored as `<uuid>.json`; images stored by their filename.
 - `_getFileId` queries Drive by exact name to determine create-vs-update.
-- JSON serialization is manual (no `json_serializable`): `_recipeToJson` / `_recipeFromJson`. `ingredient.group` and `instruction.group` are **not** included in the serialized JSON — they will be lost on sync.
+- JSON serialization is manual (no `json_serializable`): `_recipeToJson` / `_recipeFromJson`. Serializes `ingredient.group`, `instruction.group`, and `instruction.photoPath` (filename only).
 
 ### `ICloudSyncService` (iOS / macOS)
 - Uses `icloud_storage` package.
 - Container ID is currently `iCloud.com.example.omnomnom` — this is a **placeholder** and must be replaced before iCloud sync works.
 - `init()` is a no-op.
-- Same JSON schema as Google Drive service, same group-field omission.
+- Same JSON schema as Google Drive service; serializes `ingredient.group`, `instruction.group`, and `instruction.photoPath`.
 
 ### `IngredientParser`
 Static utility. `parse(String input)` → `Map<String, String>` with keys `amount` and `name`.

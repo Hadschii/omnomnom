@@ -15,6 +15,8 @@ void main() {
 
     setUp(() {
       recipeRepository = MockRecipeRepository();
+      when(() => recipeRepository.onSyncCompleted)
+          .thenAnswer((_) => const Stream.empty());
     });
 
     final recipe = Recipe(

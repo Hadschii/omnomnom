@@ -12,12 +12,17 @@ class ICloudSyncService implements SyncService {
 
   @override
   Future<void> init() async {
-    // No specific init needed
+    // No init needed. Individual operations handle PlatformException gracefully.
   }
 
   @override
   Future<bool> isConnected() async {
-    return true; 
+    try {
+      await ICloudStorage.gather(containerId: _containerId);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -28,6 +33,7 @@ class ICloudSyncService implements SyncService {
     
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/$fileName');
+    await tempFile.parent.create(recursive: true);
     await tempFile.writeAsString(jsonString);
 
     await ICloudStorage.upload(
@@ -63,7 +69,8 @@ class ICloudSyncService implements SyncService {
           try {
             final tempDir = await getTemporaryDirectory();
             final destPath = '${tempDir.path}/${file.relativePath}';
-            
+            await File(destPath).parent.create(recursive: true);
+
             await ICloudStorage.download(
               containerId: _containerId,
               relativePath: file.relativePath,
@@ -121,8 +128,16 @@ class ICloudSyncService implements SyncService {
     return {
       'id': recipe.id,
       'title': recipe.title,
-      'ingredients': recipe.ingredients.map((e) => {'name': e.name, 'amount': e.amount}).toList(),
-      'instructions': recipe.instructions.map((e) => {'description': e.description}).toList(),
+      'ingredients': recipe.ingredients.map((e) => {
+        'name': e.name,
+        'amount': e.amount,
+        'group': e.group,
+      }).toList(),
+      'instructions': recipe.instructions.map((e) => {
+        'description': e.description,
+        'group': e.group,
+        'photoPath': e.photoPath?.split('/').last,
+      }).toList(),
       'folderId': recipe.folderId,
       'labels': recipe.labels,
       'createdAt': recipe.createdAt.toIso8601String(),
@@ -137,8 +152,16 @@ class ICloudSyncService implements SyncService {
     return Recipe(
       id: json['id'],
       title: json['title'],
-      ingredients: (json['ingredients'] as List).map((e) => Ingredient(name: e['name'], amount: e['amount'])).toList(),
-      instructions: (json['instructions'] as List).map((e) => Instruction(description: e['description'])).toList(),
+      ingredients: (json['ingredients'] as List).map((e) => Ingredient(
+        name: e['name'],
+        amount: e['amount'],
+        group: e['group'],
+      )).toList(),
+      instructions: (json['instructions'] as List).map((e) => Instruction(
+        description: e['description'],
+        group: e['group'],
+        photoPath: e['photoPath'],
+      )).toList(),
       folderId: json['folderId'],
       labels: List<String>.from(json['labels']),
       createdAt: DateTime.parse(json['createdAt']),

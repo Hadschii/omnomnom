@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'screens/home_screen.dart'; // Kept for reference if needed, though MainScreen replaces it as root
 import 'screens/main_screen.dart';
-import 'screens/recipe_detail_screen.dart';
 import 'screens/recipe_edit_screen.dart';
 import 'screens/theme_settings_screen.dart';
 import 'screens/about_settings_screen.dart';
+import 'screens/folders_settings_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -25,6 +23,10 @@ final router = GoRouter(
             GoRoute(
               path: 'about',
               builder: (context, state) => const AboutSettingsScreen(),
+            ),
+            GoRoute(
+              path: 'folders',
+              builder: (context, state) => const FoldersSettingsScreen(),
             ),
           ],
         ),

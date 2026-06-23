@@ -759,7 +759,6 @@ class _AnimatedAddButton extends StatefulWidget {
 
 class _AnimatedAddButtonState extends State<_AnimatedAddButton> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -770,7 +769,6 @@ class _AnimatedAddButtonState extends State<_AnimatedAddButton> with SingleTicke
       lowerBound: 0.0,
       upperBound: 0.1,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(_controller);
   }
 
   @override

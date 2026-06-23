@@ -67,6 +67,8 @@ class SettingsScreen extends StatelessWidget {
               context.go('/settings/theme');
             } else if (setting == 'about') {
               context.go('/settings/about');
+            } else if (setting == 'folders') {
+              context.go('/settings/folders');
             }
           },
         ),
@@ -94,6 +96,13 @@ class SettingsList extends StatelessWidget {
                   title: const Text('Theme'),
                   subtitle: Text(_getThemeModeName(state.themeMode)),
                   onTap: () => onTap('theme'),
+                  trailing: const Icon(Icons.chevron_right),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.folder_outlined),
+                  title: const Text('Manage Folders'),
+                  subtitle: const Text('Create, rename and delete folders'),
+                  onTap: () => onTap('folders'),
                   trailing: const Icon(Icons.chevron_right),
                 ),
                 SwitchListTile(

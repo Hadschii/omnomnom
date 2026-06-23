@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "macOS Desktop",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "macos"],
+      "port": 8181
+    },
+    {
+      "name": "Chrome (Web)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "chrome", "--web-port", "8080"],
+      "port": 8080
+    },
+    {
+      "name": "iPhone 17 Pro (physical)",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "00008150-0004246901C0401C"],
+      "port": 8282
+    },
+    {
+      "name": "iOS Simulator",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "apple_ios_simulator"],
+      "port": 8383
+    },
+    {
+      "name": "Android Emulator",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "emulator-5554"],
+      "port": 8484
+    }
+  ]
+}
