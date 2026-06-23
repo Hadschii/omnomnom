@@ -14,14 +14,62 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Settings'),
       ),
-      body: SettingsList(
-        onTap: (setting) {
-          if (setting == 'theme') {
-            context.go('/settings/theme');
-          } else if (setting == 'about') {
-            context.go('/settings/about');
+      body: BlocListener<SettingsBloc, SettingsState>(
+        listenWhen: (previous, current) => previous.syncStatus != current.syncStatus,
+        listener: (context, state) {
+          if (state.syncStatus == SyncStatus.loading) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Text('Syncing...'),
+                    ],
+                  ),
+                  duration: Duration(days: 1), // Indefinite until dismissed
+                ),
+              );
+          } else if (state.syncStatus == SyncStatus.success) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Text('Sync completed successfully!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+          } else if (state.syncStatus == SyncStatus.failure) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text('Sync failed: ${state.syncErrorMessage ?? "Unknown error"}'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
           }
         },
+        child: SettingsList(
+          onTap: (setting) {
+            if (setting == 'theme') {
+              context.go('/settings/theme');
+            } else if (setting == 'about') {
+              context.go('/settings/about');
+            }
+          },
+        ),
       ),
     );
   }
@@ -78,9 +126,6 @@ class SettingsList extends StatelessWidget {
                     subtitle: const Text('Upload local recipes to cloud'),
                     onTap: () {
                       context.read<SettingsBloc>().add(const TriggerPushSync());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Pushing to cloud...')),
-                      );
                     },
                     trailing: const Icon(Icons.chevron_right),
                   ),
@@ -90,9 +135,6 @@ class SettingsList extends StatelessWidget {
                     subtitle: const Text('Download recipes from cloud (Overwrites local)'),
                     onTap: () {
                       context.read<SettingsBloc>().add(const TriggerPullSync());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Pulling from cloud...')),
-                      );
                     },
                     trailing: const Icon(Icons.chevron_right),
                   ),

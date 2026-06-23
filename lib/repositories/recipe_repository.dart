@@ -93,55 +93,84 @@ class RecipeRepository {
   bool get isSyncEnabled => _isSyncEnabled;
 
   Future<void> syncFromCloud() async {
-    if (_syncService == null) return;
+    if (_syncService == null) {
+      throw Exception('Sync service is not initialized');
+    }
 
-    final cloudRecipes = await _syncService!.downloadAllRecipes();
-    
-    // Overwrite local data as per AC
-    await _box.clear();
-    for (final recipe in cloudRecipes) {
-      await _box.put(recipe.id, recipe);
-      if (recipe.imagePath != null) {
-        // Download image if needed
-        final localImagePath = await _syncService!.downloadImage(recipe.imagePath!);
-        if (localImagePath != null) {
-           // Update recipe with local path if needed (though we store filename in cloud, local path might vary)
-           // Actually, the downloadImage returns the local path. 
-           // We might need to update the recipe object if we stored just the filename in the cloud but need full path locally.
-           // But for now, let's assume the model holds the filename or relative path, or we update it here.
-           // The _recipeFromJson in SyncService sets imagePath to filename. 
-           // We should probably update it to the full local path here if the app expects full path.
-           // Let's check how the app uses imagePath.
-           // Assuming it expects a file path.
-           final updatedRecipe = Recipe(
-             id: recipe.id,
-             title: recipe.title,
-             ingredients: recipe.ingredients,
-             instructions: recipe.instructions,
-             folderId: recipe.folderId,
-             labels: recipe.labels,
-             createdAt: recipe.createdAt,
-             imagePath: localImagePath,
-             servings: recipe.servings,
-             prepTime: recipe.prepTime,
-             cookTime: recipe.cookTime,
-           );
-           await _box.put(recipe.id, updatedRecipe);
+    try {
+      print('RecipeRepository: Downloading recipes from cloud...');
+      // 1. Download all recipes first (if this fails, the local DB is untouched)
+      final cloudRecipes = await _syncService!.downloadAllRecipes();
+      print('RecipeRepository: Downloaded ${cloudRecipes.length} recipes from cloud');
+
+      // 2. Download and map images for recipes (if any download fails, local DB is still untouched)
+      final Map<String, String> downloadedImages = {};
+      for (final recipe in cloudRecipes) {
+        if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
+          try {
+            print('RecipeRepository: Downloading image for recipe ${recipe.title}: ${recipe.imagePath}');
+            final localImagePath = await _syncService!.downloadImage(recipe.imagePath!);
+            if (localImagePath != null) {
+              downloadedImages[recipe.id] = localImagePath;
+            }
+          } catch (e) {
+            print('RecipeRepository: Non-fatal error downloading image for ${recipe.title}: $e');
+            // Do not fail the whole sync if a single image fails to download
+          }
         }
       }
+
+      // 3. Wiping local and writing new data inside a safe local block
+      // At this stage, all remote data has been successfully fetched.
+      print('RecipeRepository: Committing downloaded data to local store...');
+      await _box.clear();
+      for (final recipe in cloudRecipes) {
+        final localImagePath = downloadedImages[recipe.id];
+        
+        final updatedRecipe = Recipe(
+          id: recipe.id,
+          title: recipe.title,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+          folderId: recipe.folderId,
+          labels: recipe.labels,
+          createdAt: recipe.createdAt,
+          imagePath: localImagePath ?? recipe.imagePath,
+          servings: recipe.servings,
+          prepTime: recipe.prepTime,
+          cookTime: recipe.cookTime,
+        );
+        await _box.put(updatedRecipe.id, updatedRecipe);
+      }
+      
+      final now = DateTime.now();
+      _syncCompletedController.add(now);
+      print('RecipeRepository: Pull sync completed successfully');
+    } catch (e) {
+      print('RecipeRepository: Error during pull sync: $e');
+      rethrow; // Propagate exception to calling BLoC
     }
-    _syncCompletedController.add(DateTime.now());
   }
 
   Future<void> syncToCloud() async {
-    if (_syncService == null) return;
+    if (_syncService == null) {
+      throw Exception('Sync service is not initialized');
+    }
     
-    final localRecipes = _box.values.toList();
-    for (final recipe in localRecipes) {
-      await _syncService!.uploadRecipe(recipe);
-      if (recipe.imagePath != null) {
-        await _syncService!.uploadImage(recipe.imagePath!);
+    try {
+      print('RecipeRepository: Uploading local recipes to cloud...');
+      final localRecipes = _box.values.toList();
+      for (final recipe in localRecipes) {
+        await _syncService!.uploadRecipe(recipe);
+        if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
+          await _syncService!.uploadImage(recipe.imagePath!);
+        }
       }
+      _syncCompletedController.add(DateTime.now());
+      print('RecipeRepository: Push sync completed successfully');
+    } catch (e) {
+      print('RecipeRepository: Error during push sync: $e');
+      rethrow; // Propagate exception to calling BLoC
     }
   }
 

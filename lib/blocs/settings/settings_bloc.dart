@@ -44,16 +44,26 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         : null;
     
     // Sync with repository state
-    if (isSyncEnabled) {
-      await _recipeRepository.enableSync();
-    } else {
-      await _recipeRepository.disableSync();
+    bool actualSyncState = isSyncEnabled;
+    String? syncError;
+    try {
+      if (isSyncEnabled) {
+        await _recipeRepository.enableSync();
+      } else {
+        await _recipeRepository.disableSync();
+      }
+    } catch (e) {
+      print('SettingsBloc: Failed to initialize sync on load: $e');
+      actualSyncState = false; // Fallback to disabled if initialization fails
+      syncError = e.toString().replaceAll('Exception: ', '');
     }
 
     emit(state.copyWith(
       themeMode: themeMode,
-      isSyncEnabled: isSyncEnabled,
+      isSyncEnabled: actualSyncState,
       lastSyncDate: lastSyncDate,
+      syncStatus: syncError != null ? SyncStatus.failure : SyncStatus.idle,
+      syncErrorMessage: syncError,
     ));
   }
 
@@ -70,16 +80,27 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ToggleSync event,
     Emitter<SettingsState> emit,
   ) async {
+    emit(state.copyWith(syncStatus: SyncStatus.loading, syncErrorMessage: null));
     final box = await Hive.openBox(_settingsBoxName);
     await box.put(_syncEnabledKey, event.isEnabled);
     
-    if (event.isEnabled) {
-      await _recipeRepository.enableSync();
-    } else {
-      await _recipeRepository.disableSync();
+    try {
+      if (event.isEnabled) {
+        await _recipeRepository.enableSync();
+      } else {
+        await _recipeRepository.disableSync();
+      }
+      emit(state.copyWith(
+        isSyncEnabled: event.isEnabled,
+        syncStatus: SyncStatus.success,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isSyncEnabled: false, // fallback to disabled if initialization fails
+        syncStatus: SyncStatus.failure,
+        syncErrorMessage: e.toString().replaceAll('Exception: ', ''),
+      ));
     }
-    
-    emit(state.copyWith(isSyncEnabled: event.isEnabled));
   }
 
   Future<void> _onUpdateLastSyncDate(
@@ -88,15 +109,27 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     final box = await Hive.openBox(_settingsBoxName);
     await box.put(_lastSyncDateKey, event.lastSyncDate.millisecondsSinceEpoch);
-    emit(state.copyWith(lastSyncDate: event.lastSyncDate));
+    emit(state.copyWith(
+      lastSyncDate: event.lastSyncDate,
+      syncStatus: SyncStatus.success,
+    ));
   }
 
   Future<void> _onTriggerPushSync(
     TriggerPushSync event,
     Emitter<SettingsState> emit,
   ) async {
-    if (state.isSyncEnabled) {
+    if (!state.isSyncEnabled) return;
+    
+    emit(state.copyWith(syncStatus: SyncStatus.loading, syncErrorMessage: null));
+    try {
       await _recipeRepository.syncToCloud();
+      emit(state.copyWith(syncStatus: SyncStatus.success));
+    } catch (e) {
+      emit(state.copyWith(
+        syncStatus: SyncStatus.failure,
+        syncErrorMessage: e.toString().replaceAll('Exception: ', ''),
+      ));
     }
   }
 
@@ -104,8 +137,17 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     TriggerPullSync event,
     Emitter<SettingsState> emit,
   ) async {
-    if (state.isSyncEnabled) {
+    if (!state.isSyncEnabled) return;
+
+    emit(state.copyWith(syncStatus: SyncStatus.loading, syncErrorMessage: null));
+    try {
       await _recipeRepository.syncFromCloud();
+      emit(state.copyWith(syncStatus: SyncStatus.success));
+    } catch (e) {
+      emit(state.copyWith(
+        syncStatus: SyncStatus.failure,
+        syncErrorMessage: e.toString().replaceAll('Exception: ', ''),
+      ));
     }
   }
 }

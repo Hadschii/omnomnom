@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:google_sign_in/google_sign_in.dart' as signIn;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:googleapis_auth/auth_io.dart' as googleapis_auth;
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/recipe.dart';
 import '../models/ingredient.dart';
@@ -10,51 +10,39 @@ import '../models/instruction.dart';
 import 'sync_service.dart';
 
 class GoogleDriveSyncService implements SyncService {
-  // Use the singleton instance
-  signIn.GoogleSignIn get _googleSignIn => signIn.GoogleSignIn.instance;
+  // Web Client ID from Google Cloud Console
+  static const String _serverClientId = '1096578044836-bqpee1hluiup3jeannrqa23nv307d87b.apps.googleusercontent.com';
+
+  GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
   
   drive.DriveApi? _driveApi;
-
-  // TODO: Replace with your actual Web Client ID from Google Cloud Console
-  // See: https://developers.google.com/identity/sign-in/android/start-integrating#configure_a_google_api_console_project
-  static const String _serverClientId = '1096578044836-bqpee1hluiup3jeannrqa23nv307d87b.apps.googleusercontent.com';
 
   @override
   Future<void> init() async {
     print('GoogleDriveSyncService: init() started');
-    signIn.GoogleSignInAccount? account;
+    GoogleSignInAccount? account;
     try {
-      if (Platform.isAndroid) {
-        print('GoogleDriveSyncService: Initializing for Android with serverClientId: $_serverClientId');
-        try {
-          // In 7.x, we just call initialize.
-          await _googleSignIn.initialize(serverClientId: _serverClientId);
-          print('GoogleDriveSyncService: GoogleSignIn initialized');
-        } catch (e) {
-          print('GoogleDriveSyncService: Google Sign-In initialize error (might be already initialized): $e');
-        }
+      print('GoogleDriveSyncService: Initializing GoogleSignIn...');
+      try {
+        await _googleSignIn.initialize(
+          serverClientId: _serverClientId,
+        );
+        print('GoogleDriveSyncService: GoogleSignIn initialized successfully');
+      } catch (e) {
+        print('GoogleDriveSyncService: GoogleSignIn initialize error (might be already initialized): $e');
       }
 
       print('GoogleDriveSyncService: Attempting lightweight authentication...');
       account = await _googleSignIn.attemptLightweightAuthentication();
       
       if (account == null) {
-         print('GoogleDriveSyncService: Lightweight auth failed/null. FORCING SIGN OUT to clear cache...');
+         print('GoogleDriveSyncService: Lightweight auth returned null. Requesting interactive authenticate...');
          try {
-            await _googleSignIn.signOut();
-            print('GoogleDriveSyncService: Sign out successful. Now requesting interactive auth...');
-         } catch (e) {
-            print('GoogleDriveSyncService: Error signing out: $e');
-         }
-
-         try {
-            // authenticate() should now use the scopes from the constructor
             account = await _googleSignIn.authenticate();
-            print('GoogleDriveSyncService: Interactive auth returned account: ${account?.email}');
+            print('GoogleDriveSyncService: Interactive authenticate returned account: ${account?.email}');
          } catch (e) {
-            print('GoogleDriveSyncService: Interactive auth failed: $e');
-            // Rethrowing to be caught by outer catch
-            throw e;
+            print('GoogleDriveSyncService: Interactive authenticate failed: $e');
+            throw Exception('Google interactive authenticate failed: $e');
          }
       } else {
          print('GoogleDriveSyncService: Lightweight auth successful for ${account.email}');
@@ -63,43 +51,32 @@ class GoogleDriveSyncService implements SyncService {
       if (account != null) {
         print('GoogleDriveSyncService: Account obtained: ${account.email}');
         
-        // Use authorizeScopes to get the token (Incremental Authorization)
         try {
-          print('GoogleDriveSyncService: Requesting authorization for Drive scope...');
-          // This is the key change for 7.x: separate authorization step
-          final authClient = account.authorizationClient;
-          final auth = await authClient.authorizeScopes([drive.DriveApi.driveAppdataScope]);
-          final accessToken = auth.accessToken;
+          print('GoogleDriveSyncService: Requesting authorization for Drive AppData scope...');
+          await account.authorizationClient.authorizeScopes([drive.DriveApi.driveAppdataScope]);
           
-          print('GoogleDriveSyncService: Access token obtained: ${accessToken != null ? "Yes" : "No"}');
+          print('GoogleDriveSyncService: Retrieving authenticated client via extension...');
+          final client = await _googleSignIn.authenticatedClient();
           
-          if (accessToken != null) {
-              print('GoogleDriveSyncService: Creating authenticated client...');
-              final authenticateClient = googleapis_auth.authenticatedClient(
-                  googleapis_auth.clientViaApiKey(''), 
-                  googleapis_auth.AccessCredentials(
-                      googleapis_auth.AccessToken(
-                          'Bearer', 
-                          accessToken, 
-                          DateTime.now().toUtc().add(const Duration(hours: 1)), 
-                      ),
-                      null, 
-                      [drive.DriveApi.driveAppdataScope],
-                  ),
-              );
-              _driveApi = drive.DriveApi(authenticateClient);
+          if (client != null) {
+              _driveApi = drive.DriveApi(client);
               print('GoogleDriveSyncService: Drive API initialized successfully');
           } else {
-              print('GoogleDriveSyncService: Access token was null');
+              print('GoogleDriveSyncService: Authenticated client was null');
+              throw Exception('Failed to obtain authenticated client from Google Sign-In.');
           }
         } catch (e) {
-          print('GoogleDriveSyncService: Error authorizing scopes: $e');
+          print('GoogleDriveSyncService: Error creating authenticated client: $e');
+          throw Exception('Google Drive client authentication failed: $e');
         }
       } else {
         print('GoogleDriveSyncService: Account is still null after authentication attempts');
+        throw Exception('Sign-in failed. Google account is unauthorized.');
       }
     } catch (e) {
       print('GoogleDriveSyncService: Error initializing/signing in to Google: $e');
+      _driveApi = null;
+      rethrow;
     }
   }
 
@@ -112,7 +89,7 @@ class GoogleDriveSyncService implements SyncService {
   Future<void> uploadRecipe(Recipe recipe) async {
     if (_driveApi == null) {
       print('GoogleDriveSyncService: uploadRecipe called but _driveApi is null');
-      return;
+      throw Exception('Google Drive is not connected');
     }
 
     print('GoogleDriveSyncService: Uploading recipe ${recipe.title} (${recipe.id})');
@@ -148,12 +125,15 @@ class GoogleDriveSyncService implements SyncService {
       print('GoogleDriveSyncService: Upload successful');
     } catch (e) {
       print('GoogleDriveSyncService: Error uploading recipe: $e');
+      throw Exception('Failed to upload recipe to Google Drive: $e');
     }
   }
 
   @override
   Future<void> deleteRecipe(String id) async {
-    if (_driveApi == null) return;
+    if (_driveApi == null) {
+      throw Exception('Google Drive is not connected');
+    }
     print('GoogleDriveSyncService: Deleting recipe $id');
     final fileName = '$id.json';
     final fileId = await _getFileId(fileName);
@@ -163,6 +143,7 @@ class GoogleDriveSyncService implements SyncService {
         print('GoogleDriveSyncService: Delete successful');
       } catch (e) {
         print('GoogleDriveSyncService: Error deleting recipe: $e');
+        throw Exception('Failed to delete recipe from Google Drive: $e');
       }
     } else {
       print('GoogleDriveSyncService: File not found for deletion');
@@ -173,7 +154,7 @@ class GoogleDriveSyncService implements SyncService {
   Future<List<Recipe>> downloadAllRecipes() async {
     if (_driveApi == null) {
       print('GoogleDriveSyncService: downloadAllRecipes called but _driveApi is null');
-      return [];
+      throw Exception('Google Drive is not connected');
     }
 
     print('GoogleDriveSyncService: Downloading all recipes...');
@@ -198,6 +179,7 @@ class GoogleDriveSyncService implements SyncService {
               recipes.add(_recipeFromJson(jsonMap));
             } catch (e) {
               print('GoogleDriveSyncService: Error downloading recipe ${file.name}: $e');
+              // Let it continue downloading other files but log the error
             }
           }
         }
@@ -206,13 +188,15 @@ class GoogleDriveSyncService implements SyncService {
       return recipes;
     } catch (e) {
       print('GoogleDriveSyncService: Error listing/downloading recipes: $e');
-      return [];
+      throw Exception('Failed to download recipes from Google Drive: $e');
     }
   }
 
   @override
   Future<void> uploadImage(String imagePath) async {
-    if (_driveApi == null) return;
+    if (_driveApi == null) {
+      throw Exception('Google Drive is not connected');
+    }
     
     final fileName = imagePath.split('/').last;
     print('GoogleDriveSyncService: Uploading image $fileName');
@@ -243,12 +227,15 @@ class GoogleDriveSyncService implements SyncService {
       print('GoogleDriveSyncService: Image upload successful');
     } catch (e) {
       print('GoogleDriveSyncService: Error uploading image: $e');
+      throw Exception('Failed to upload recipe image: $e');
     }
   }
 
   @override
   Future<String?> downloadImage(String imageName) async {
-    if (_driveApi == null) return null;
+    if (_driveApi == null) {
+      throw Exception('Google Drive is not connected');
+    }
 
     try {
       final appDocDir = await getApplicationDocumentsDirectory();
@@ -272,6 +259,7 @@ class GoogleDriveSyncService implements SyncService {
       }
     } catch (e) {
       print('GoogleDriveSyncService: Error downloading image $imageName: $e');
+      throw Exception('Failed to download image $imageName: $e');
     }
     return null;
   }
@@ -292,7 +280,6 @@ class GoogleDriveSyncService implements SyncService {
     return null;
   }
 
-  // Helper methods (duplicated for now, could be shared)
   Map<String, dynamic> _recipeToJson(Recipe recipe) {
     return {
       'id': recipe.id,

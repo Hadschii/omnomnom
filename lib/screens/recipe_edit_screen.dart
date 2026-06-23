@@ -15,6 +15,7 @@ import '../models/folder.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
+import '../services/ingredient_parser.dart';
 import 'edit_screen_helpers.dart';
 
 class RecipeEditScreen extends StatefulWidget {
@@ -532,8 +533,23 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
     } else if (item is IngredientItem) {
       return ListTile(
         key: item.key,
-        title: Text(item.name),
-        subtitle: Text(item.amount),
+        title: Row(
+          children: [
+            if (item.amount.isNotEmpty) ...[
+              Text(
+                item.amount,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(item.name),
+            ),
+          ],
+        ),
         trailing: ReorderableDragStartListener(
           index: index,
           child: const Icon(Icons.drag_handle),
@@ -653,18 +669,25 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
         ),
       );
     } else if (item is IngredientItem) {
-      final nameCtrl = TextEditingController(text: item.name);
-      final amountCtrl = TextEditingController(text: item.amount);
+      final initialText = item.amount.isEmpty ? item.name : '${item.amount} ${item.name}';
+      final ingredientCtrl = TextEditingController(text: initialText);
       return Padding(
         key: item.key,
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
-            Expanded(flex: 1, child: TextField(controller: amountCtrl, decoration: const InputDecoration(labelText: 'Amount'), autofocus: true)),
-            const SizedBox(width: 8),
-            Expanded(flex: 2, child: TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Ingredient'))),
+            Expanded(
+              child: TextField(
+                controller: ingredientCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Ingredient',
+                  hintText: 'e.g., 100ml Water or 2 Eggs',
+                ),
+                autofocus: true,
+              ),
+            ),
             ValueListenableBuilder<TextEditingValue>(
-              valueListenable: nameCtrl,
+              valueListenable: ingredientCtrl,
               builder: (context, value, child) {
                 return AnimatedScale(
                   scale: value.text.trim().isNotEmpty ? 1.0 : 0.0,
@@ -673,9 +696,10 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
                     icon: const Icon(Icons.check, color: Colors.green),
                     onPressed: () {
                       if (value.text.trim().isNotEmpty) {
+                        final parsed = IngredientParser.parse(ingredientCtrl.text);
                         setState(() {
-                          item.name = nameCtrl.text;
-                          item.amount = amountCtrl.text;
+                          item.name = parsed['name']!;
+                          item.amount = parsed['amount']!;
                           _editingItemId = null;
                         });
                       }

@@ -177,14 +177,23 @@ class RecipeDetailScreen extends StatelessWidget {
         ...entry.value.map((ingredient) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(ingredient.name, style: Theme.of(context).textTheme.bodyLarge),
-                  if (ingredient.amount.isNotEmpty)
+                  if (ingredient.amount.isNotEmpty) ...[
                     Text(
                       ingredient.amount,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      ingredient.name,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
                 ],
               ),
             )),
