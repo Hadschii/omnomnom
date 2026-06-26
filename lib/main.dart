@@ -14,6 +14,7 @@ import 'models/folder.dart';
 import 'models/ingredient.dart';
 import 'models/instruction.dart';
 import 'models/recipe.dart';
+import 'models/recipe_book.dart';
 import 'repositories/folder_repository.dart';
 import 'repositories/recipe_repository.dart';
 import 'router.dart';
@@ -31,6 +32,7 @@ void main() async {
   Hive.registerAdapter(InstructionAdapter());
   Hive.registerAdapter(FolderAdapter());
   Hive.registerAdapter(RecipeAdapter());
+  Hive.registerAdapter(RecipeBookAdapter());
 
   // Initialize Repositories
   final recipeRepository = RecipeRepository();

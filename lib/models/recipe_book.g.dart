@@ -1,44 +1,41 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'instruction.dart';
+part of 'recipe_book.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class InstructionAdapter extends TypeAdapter<Instruction> {
+class RecipeBookAdapter extends TypeAdapter<RecipeBook> {
   @override
-  final int typeId = 3;
+  final int typeId = 4;
 
   @override
-  Instruction read(BinaryReader reader) {
+  RecipeBook read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Instruction(
-      description: fields[0] as String,
-      group: fields[1] as String?,
-      photoPath: fields[2] as String?,
-      timerSeconds: fields[3] as int?,
-      groups: (fields[4] as List?)?.cast<String>(),
+    return RecipeBook(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      coverImagePath: fields[2] as String?,
+      createdAt: fields[3] as DateTime,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Instruction obj) {
+  void write(BinaryWriter writer, RecipeBook obj) {
     writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.description)
-      ..writeByte(1)
-      ..write(obj.group)
-      ..writeByte(2)
-      ..write(obj.photoPath)
-      ..writeByte(3)
-      ..write(obj.timerSeconds)
       ..writeByte(4)
-      ..write(obj.groups);
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.coverImagePath)
+      ..writeByte(3)
+      ..write(obj.createdAt);
   }
 
   @override
@@ -47,7 +44,7 @@ class InstructionAdapter extends TypeAdapter<Instruction> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is InstructionAdapter &&
+      other is RecipeBookAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

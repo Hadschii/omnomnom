@@ -39,6 +39,12 @@ class Recipe {
   @HiveField(10)
   final int? cookTime; // in minutes
 
+  /// The recipe books this recipe belongs to (many-to-many). A recipe can be
+  /// in 0..n books. This is the source of truth for book membership. Null on
+  /// records created before this field existed.
+  @HiveField(11)
+  final List<String>? bookIds;
+
   Recipe({
     required this.id,
     required this.title,
@@ -51,5 +57,6 @@ class Recipe {
     this.servings,
     this.prepTime,
     this.cookTime,
+    this.bookIds,
   });
 }
