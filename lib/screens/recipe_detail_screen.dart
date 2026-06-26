@@ -8,34 +8,7 @@ import '../blocs/recipe/recipe_state.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
-
-const _metaGrey = Color(0xFF8E8E93);
-
-/// The per-recipe accent colour.
-///
-/// PLACEHOLDER: the design samples this from the recipe photo. Palette
-/// extraction isn't wired yet, so we use the brand orange for every recipe.
-/// Swap this single function for the extracted colour later.
-Color accentForRecipe(Recipe recipe) => const Color(0xFFF69021);
-
-/// Deterministic, distinct colours for ingredient groups (Sauce, Mains, …),
-/// so a group reads the same everywhere it appears.
-const _groupPalette = <Color>[
-  Color(0xFFC0492E),
-  Color(0xFF4E8A4F),
-  Color(0xFF6E5BD8),
-  Color(0xFFE08A2C),
-  Color(0xFFB23A6B),
-  Color(0xFF2D6E8E),
-];
-Color groupColor(String name) =>
-    _groupPalette[name.hashCode.abs() % _groupPalette.length];
-
-String formatTimer(int seconds) {
-  final m = seconds ~/ 60;
-  final s = seconds % 60;
-  return '$m:${s.toString().padLeft(2, '0')}';
-}
+import '../theme/recipe_accents.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -295,7 +268,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
                 Text(
                   it[1],
-                  style: const TextStyle(fontSize: 12, color: _metaGrey),
+                  style: const TextStyle(fontSize: 12, color: metaGrey),
                 ),
               ],
             ),
@@ -388,7 +361,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     if (recipe.ingredients.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No ingredients yet', style: TextStyle(color: _metaGrey)),
+        child: Text('No ingredients yet', style: TextStyle(color: metaGrey)),
       );
     }
     final grouped = <String?, List<Ingredient>>{};
@@ -450,7 +423,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     if (recipe.instructions.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No steps yet', style: TextStyle(color: _metaGrey)),
+        child: Text('No steps yet', style: TextStyle(color: metaGrey)),
       );
     }
     final total = (recipe.prepTime ?? 0) + (recipe.cookTime ?? 0);
@@ -461,7 +434,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(summary.toString(),
-            style: const TextStyle(fontSize: 13, color: _metaGrey)),
+            style: const TextStyle(fontSize: 13, color: metaGrey)),
       ),
     ];
     for (var i = 0; i < recipe.instructions.length; i++) {
