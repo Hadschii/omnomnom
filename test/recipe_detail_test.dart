@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_bloc.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_event.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_state.dart';
@@ -14,6 +15,8 @@ class MockRecipeBloc extends MockBloc<RecipeEvent, RecipeState>
     implements RecipeBloc {}
 
 void main() {
+  setUpAll(() => registerFallbackValue(LoadRecipes()));
+
   final recipe = Recipe(
     id: 'r1',
     title: 'Chicken Paprika Noodles',
@@ -78,5 +81,40 @@ void main() {
 
     expect(find.textContaining('Whisk the milk'), findsOneWidget);
     expect(find.text('5:00'), findsOneWidget); // 300s timer formatted
+  });
+
+  testWidgets('delete flow confirms and emits DeleteRecipe', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(500, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final bloc = MockRecipeBloc();
+    whenListen(bloc, const Stream<RecipeState>.empty(),
+        initialState: RecipeLoaded([recipe]));
+    var backCalled = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider<RecipeBloc>.value(
+          value: bloc,
+          child: RecipeDetailScreen(
+            recipeId: 'r1',
+            showBackButton: false,
+            onBack: () => backCalled = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete recipe'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete')); // confirm
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => bloc.add(captureAny())).captured;
+    expect(captured.whereType<DeleteRecipe>().single.id, 'r1');
+    expect(backCalled, isTrue);
   });
 }

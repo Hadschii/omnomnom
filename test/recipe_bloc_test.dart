@@ -76,5 +76,42 @@ void main() {
         verify(() => recipeRepository.addRecipe(recipe)).called(1);
       },
     );
+
+    blocTest<RecipeBloc, RecipeState>(
+      'updates recipe and reloads',
+      build: () {
+        when(() => recipeRepository.updateRecipe(recipe))
+            .thenAnswer((_) async {});
+        when(() => recipeRepository.getRecipes()).thenReturn([recipe]);
+        return RecipeBloc(recipeRepository: recipeRepository);
+      },
+      act: (bloc) => bloc.add(UpdateRecipe(recipe)),
+      expect: () => [
+        RecipeLoading(),
+        RecipeLoaded([recipe]),
+      ],
+      verify: (_) {
+        verify(() => recipeRepository.updateRecipe(recipe)).called(1);
+      },
+    );
+
+    blocTest<RecipeBloc, RecipeState>(
+      'deletes recipe and reloads',
+      build: () {
+        when(() => recipeRepository.deleteRecipe('1'))
+            .thenAnswer((_) async {});
+        when(() => recipeRepository.getRecipes())
+            .thenReturn(<Recipe>[]);
+        return RecipeBloc(recipeRepository: recipeRepository);
+      },
+      act: (bloc) => bloc.add(const DeleteRecipe('1')),
+      expect: () => [
+        RecipeLoading(),
+        RecipeLoaded(const <Recipe>[]),
+      ],
+      verify: (_) {
+        verify(() => recipeRepository.deleteRecipe('1')).called(1);
+      },
+    );
   });
 }

@@ -92,4 +92,78 @@ void main() {
     expect(step.groups, ['Sauce']);
     expect(update.recipe.ingredients.single.group, 'Sauce');
   });
+
+  testWidgets('new recipe: entering a title + ingredient saves an AddRecipe',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(500, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final bloc = MockRecipeBloc();
+    whenListen(bloc, const Stream<RecipeState>.empty(),
+        initialState: RecipeLoaded(const <Recipe>[]));
+
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+            path: '/',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('home')))),
+        GoRoute(path: '/new', builder: (_, __) => const RecipeEditScreen()),
+      ],
+    );
+
+    await tester.pumpWidget(
+      BlocProvider<RecipeBloc>.value(
+        value: bloc,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    router.push('/new');
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'My Soup');
+    await tester.tap(find.text('Add ingredient'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '100 ml Milk');
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final captured = verify(() => bloc.add(captureAny())).captured;
+    final add = captured.whereType<AddRecipe>().first;
+    expect(add.recipe.title, 'My Soup');
+    expect(add.recipe.ingredients.single.name, 'Milk');
+    expect(add.recipe.ingredients.single.amount, '100 ml');
+  });
+
+  testWidgets('empty title shows validation and does not save',
+      (tester) async {
+    final bloc = MockRecipeBloc();
+    whenListen(bloc, const Stream<RecipeState>.empty(),
+        initialState: RecipeLoaded(const <Recipe>[]));
+
+    final router = GoRouter(
+      initialLocation: '/new',
+      routes: [
+        GoRoute(path: '/new', builder: (_, __) => const RecipeEditScreen()),
+      ],
+    );
+
+    await tester.pumpWidget(
+      BlocProvider<RecipeBloc>.value(
+        value: bloc,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Please enter a title'), findsOneWidget);
+    verifyNever(() => bloc.add(any(that: isA<AddRecipe>())));
+  });
 }

@@ -71,4 +71,20 @@ void main() {
     expect(find.text('SAUCE · NEEDED NOW'), findsOneWidget);
     expect(find.text('Tap to start 5:00'), findsOneWidget);
   });
+
+  testWidgets('starting the step timer counts down', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byIcon(Icons.chevron_right)); // to the timed step
+    await tester.pump();
+
+    await tester.tap(find.text('Tap to start 5:00'));
+    await tester.pump(); // start running at 5:00
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.textContaining('4:59'), findsOneWidget);
+
+    // Tap again to pause so no Timer is left pending at teardown.
+    await tester.tap(find.textContaining('4:59'));
+    await tester.pump();
+  });
 }
