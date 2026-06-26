@@ -55,16 +55,12 @@ class GoogleDriveSyncService implements SyncService {
           print('GoogleDriveSyncService: Requesting authorization for Drive AppData scope...');
           await account.authorizationClient.authorizeScopes([drive.DriveApi.driveAppdataScope]);
           
-          print('GoogleDriveSyncService: Retrieving authenticated client via extension...');
-          final client = await _googleSignIn.authenticatedClient();
-          
-          if (client != null) {
-              _driveApi = drive.DriveApi(client);
-              print('GoogleDriveSyncService: Drive API initialized successfully');
-          } else {
-              print('GoogleDriveSyncService: Authenticated client was null');
-              throw Exception('Failed to obtain authenticated client from Google Sign-In.');
-          }
+          // PLACEHOLDER: `authenticatedClient()` was removed in google_sign_in 7.x.
+          // Android Google Drive sync is deferred (sync = later). Stubbed so the
+          // project compiles; restore real client retrieval when wiring up sync.
+          throw UnimplementedError(
+            'Google Drive sync pending migration to google_sign_in 7.x',
+          );
         } catch (e) {
           print('GoogleDriveSyncService: Error creating authenticated client: $e');
           throw Exception('Google Drive client authentication failed: $e');

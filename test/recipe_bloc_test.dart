@@ -15,6 +15,10 @@ void main() {
 
     setUp(() {
       recipeRepository = MockRecipeRepository();
+      // RecipeBloc subscribes to onSyncCompleted in its constructor; stub it
+      // so the mock returns a real (empty) stream instead of null.
+      when(() => recipeRepository.onSyncCompleted)
+          .thenAnswer((_) => const Stream<DateTime>.empty());
     });
 
     final recipe = Recipe(
