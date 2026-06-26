@@ -279,8 +279,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Widget _startCooking(BuildContext context, Color accent) {
     return GestureDetector(
-      // PLACEHOLDER: hands-free cook mode is built in Step 5.
-      onTap: () => _placeholder(context, 'Cook mode'),
+      onTap: () => context.push('/recipe/${widget.recipeId}/cook'),
       child: Container(
         height: 52,
         decoration: BoxDecoration(

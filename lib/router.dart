@@ -1,8 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'screens/home_screen.dart'; // Kept for reference if needed, though MainScreen replaces it as root
 import 'screens/main_screen.dart';
-import 'screens/recipe_detail_screen.dart';
+import 'screens/cook_screen.dart';
 import 'screens/recipe_edit_screen.dart';
 import 'screens/theme_settings_screen.dart';
 import 'screens/about_settings_screen.dart';
@@ -48,6 +46,13 @@ final router = GoRouter(
               builder: (context, state) {
                 final id = state.pathParameters['id']!;
                 return RecipeEditScreen(recipeId: id);
+              },
+            ),
+            GoRoute(
+              path: 'cook',
+              builder: (context, state) {
+                final id = state.pathParameters['id']!;
+                return CookScreen(recipeId: id);
               },
             ),
           ],
