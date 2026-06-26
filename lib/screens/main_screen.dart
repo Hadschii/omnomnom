@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'home_screen.dart';
+import 'books_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'settings_screen.dart';
 import '../models/recipe.dart';
@@ -58,22 +59,24 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            // Reset selection when switching tabs
-            if (index == 0) {
-              // Keep recipe selection or reset? Let's keep.
-            } else {
-              // Default to first setting? Or none.
-              _selectedSetting = null;
-            }
+            // Switching tabs leaves any open recipe detail and resets the
+            // selected setting, so each tab opens to its own root.
+            _selectedRecipeId = null;
+            _selectedSetting = null;
           });
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.book),
+            icon: Icon(Icons.restaurant_menu),
             label: 'Recipes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book),
+            label: 'Books',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
@@ -103,12 +106,18 @@ class _MainScreenState extends State<MainScreen> {
       index: _selectedIndex,
       children: [
         const HomeScreen(),
+        const BooksScreen(),
         const SettingsScreen(),
       ],
     );
   }
 
   Widget _buildDesktopBody() {
+    // Books is a PLACEHOLDER for now — show it full-width rather than in the
+    // master/detail split used by Recipes and Settings.
+    if (_selectedIndex == 1) {
+      return const BooksScreen();
+    }
     return Row(
       children: [
         // Left Pane (List)

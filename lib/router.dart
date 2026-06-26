@@ -15,8 +15,12 @@ final router = GoRouter(
       builder: (context, state) => const MainScreen(initialTab: 0),
       routes: [
         GoRoute(
-          path: 'settings',
+          path: 'books',
           builder: (context, state) => const MainScreen(initialTab: 1),
+        ),
+        GoRoute(
+          path: 'settings',
+          builder: (context, state) => const MainScreen(initialTab: 2),
           routes: [
             GoRoute(
               path: 'theme',
