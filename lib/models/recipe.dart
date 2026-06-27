@@ -18,6 +18,9 @@ class Recipe {
   @HiveField(3)
   final List<Instruction> instructions;
 
+  /// Deprecated: the Folder feature was retired in favour of Recipe Books
+  /// (`bookIds`). Kept only so existing Hive records still read; do not build
+  /// new features on it.
   @HiveField(4)
   final String? folderId;
 

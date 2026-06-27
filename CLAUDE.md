@@ -10,7 +10,7 @@ OmNomNom is a personal recipe organizer. Users create and edit recipes with a ti
 
 - **Flutter** (Material 3, targets iOS / Android / macOS)
 - **Dart SDK** ^3.10.1
-- **State**: `flutter_bloc` — five BLoCs (Recipe, Folder, Book, Tag, Settings), all provided at the root
+- **State**: `flutter_bloc` — four BLoCs (Recipe, Book, Tag, Settings), all provided at the root
 - **Local DB**: `hive` — NoSQL key-value store with generated type adapters
 - **Routing**: `go_router` v17
 - **Fonts**: `google_fonts` — Inter throughout
@@ -77,7 +77,7 @@ dart run flutter_launcher_icons
 
 ### Hive
 - Recipe box is named `recipes_v2` (not `recipes`). If you change the `Recipe` model schema in a breaking way, rename the box and handle migration.
-- Type IDs are permanent: Ingredient=0, Folder=1, Recipe=2, Instruction=3, RecipeBook=4, Tag=5. Never reuse an ID, even for a deleted model.
+- Type IDs are permanent: Ingredient=0, ~~Folder=1~~ (retired — never reuse), Recipe=2, Instruction=3, RecipeBook=4, Tag=5.
 - Adapters are hand-maintained: `build_runner` cannot run because the `analyzer ^8.0.0` override is incompatible with the codegen stack. After a `@HiveField` change, edit the matching `*.g.dart` by hand (mechanical format) and add a round-trip test, rather than running `dart run build_runner`.
 - Hive is opened once during startup in `main()`. Boxes are accessed via `Hive.box<T>()` thereafter (synchronous, already open).
 - The `settings` box is managed entirely by `SettingsBloc` — other code should not open or write to it directly.
@@ -144,8 +144,8 @@ On add/update/delete with sync enabled, `RecipeRepository` emits `onSyncComplete
 **Search is not implemented**
 The search `IconButton` in `HomeScreen`'s AppBar shows a "coming soon" PLACEHOLDER snackbar — there is no live filtering yet.
 
-**Folder management is incomplete**
-Folders can be created from the `RecipeEditScreen` form, but there is no UI to rename or delete folders.
+**Folders are retired**
+The `Folder` model/bloc/repository were removed in favour of Recipe Books. `Recipe.folderId` is kept (deprecated) only so old Hive records still read — don't build on it. Hive type id 1 is permanently reserved.
 
 **Desktop layout does not navigate via router**
 In the desktop two-pane layout, clicking a recipe calls `setState(() { _selectedRecipeId = recipe.id; })` on `MainScreen` — it does not push a route. The router is only used for mobile navigation and full-page screens (edit, theme settings, about).
