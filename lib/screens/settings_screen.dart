@@ -1,12 +1,22 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../blocs/book/book_bloc.dart';
+import '../blocs/book/book_event.dart';
 import '../blocs/book/book_state.dart';
+import '../blocs/recipe/recipe_bloc.dart';
+import '../blocs/recipe/recipe_event.dart';
 import '../blocs/settings/settings_bloc.dart';
 import '../blocs/settings/settings_state.dart';
 import '../blocs/tag/tag_bloc.dart';
+import '../blocs/tag/tag_event.dart';
 import '../blocs/tag/tag_state.dart';
+import '../repositories/recipe_book_repository.dart';
+import '../repositories/recipe_repository.dart';
+import '../repositories/tag_repository.dart';
+import '../services/library_io_service.dart';
 import '../theme/recipe_accents.dart';
 
 const _brand = Color(0xFFF69021);
@@ -130,6 +140,37 @@ class SettingsScreen extends StatelessWidget {
             ),
           ]),
 
+          _SectionHeader('DATA'),
+          _Card(rows: [
+            _NavRow(
+              leadingColor: const Color(0xFF4E8A4F),
+              leading: const Icon(Icons.ios_share, color: Colors.white, size: 17),
+              title: 'Export as ZIP (with photos)',
+              onTap: () => _exportZip(context),
+            ),
+            _NavRow(
+              leadingColor: const Color(0xFF34A0E0),
+              leading: const Icon(Icons.description_outlined,
+                  color: Colors.white, size: 17),
+              title: 'Export as JSON (data only)',
+              onTap: () => _exportJson(context),
+            ),
+            _NavRow(
+              leadingColor: _brand,
+              leading: const Icon(Icons.file_download_outlined,
+                  color: Colors.white, size: 17),
+              title: 'Import library…',
+              onTap: () => _import(context),
+            ),
+            _NavRow(
+              leadingColor: const Color(0xFFFF3B30),
+              leading:
+                  const Icon(Icons.delete_outline, color: Colors.white, size: 17),
+              title: 'Delete all data',
+              onTap: () => _deleteAll(context),
+            ),
+          ]),
+
           _SectionHeader('ABOUT'),
           _Card(rows: [
             _NavRow(
@@ -143,6 +184,101 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static LibraryIoService _io(BuildContext c) => LibraryIoService(
+        recipeRepo: c.read<RecipeRepository>(),
+        bookRepo: c.read<RecipeBookRepository>(),
+        tagRepo: c.read<TagRepository>(),
+      );
+
+  static void _snack(ScaffoldMessengerState m, String text) => m
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+
+  static Future<void> _exportZip(BuildContext context) async {
+    final service = _io(context);
+    final messenger = ScaffoldMessenger.of(context);
+    _snack(messenger, 'Preparing export…');
+    try {
+      final file = await service.exportZipFile();
+      await Share.shareXFiles([XFile(file.path)], subject: 'OmNomNom library');
+    } catch (e) {
+      _snack(messenger, 'Export failed: $e');
+    }
+  }
+
+  static Future<void> _exportJson(BuildContext context) async {
+    final service = _io(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = await service.exportJsonFile();
+      await Share.shareXFiles([XFile(file.path)],
+          subject: 'OmNomNom library (data only)');
+    } catch (e) {
+      _snack(messenger, 'Export failed: $e');
+    }
+  }
+
+  static Future<void> _import(BuildContext context) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip', 'json'],
+    );
+    final path = picked?.files.single.path;
+    if (path == null || !context.mounted) return;
+    final service = _io(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final recipeBloc = context.read<RecipeBloc>();
+    final bookBloc = context.read<BookBloc>();
+    final tagBloc = context.read<TagBloc>();
+    try {
+      final s = await service.importFromFile(path);
+      recipeBloc.add(LoadRecipes());
+      bookBloc.add(LoadBooks());
+      tagBloc.add(LoadTags());
+      _snack(messenger,
+          'Imported ${s.recipes} recipes, ${s.books} books, ${s.tags} tags');
+    } catch (e) {
+      _snack(messenger, 'Import failed: $e');
+    }
+  }
+
+  static Future<void> _deleteAll(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete all data?'),
+        content: const Text(
+            'This permanently removes every recipe, book and tag stored on '
+            'this device. Export first if you want a backup. This cannot be '
+            'undone.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete everything',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+    final recipeRepo = context.read<RecipeRepository>();
+    final bookRepo = context.read<RecipeBookRepository>();
+    final tagRepo = context.read<TagRepository>();
+    final recipeBloc = context.read<RecipeBloc>();
+    final bookBloc = context.read<BookBloc>();
+    final tagBloc = context.read<TagBloc>();
+    final messenger = ScaffoldMessenger.of(context);
+    await recipeRepo.clearAll();
+    await bookRepo.clearAll();
+    await tagRepo.clearAll();
+    recipeBloc.add(LoadRecipes());
+    bookBloc.add(LoadBooks());
+    tagBloc.add(LoadTags());
+    _snack(messenger, 'All data deleted');
   }
 
   static String _themeName(ThemeMode mode) => switch (mode) {

@@ -15,6 +15,7 @@ OmNomNom is a personal recipe organizer. Users create and edit recipes with a ti
 - **Routing**: `go_router` v17
 - **Fonts**: `google_fonts` — Inter throughout
 - **Images**: `image_picker` + `path_provider`
+- **Backup / share**: `archive` (zip), `share_plus` (export via the share sheet), `file_picker` (import)
 - **Sync (Android)**: `googleapis` (Drive v3) + `google_sign_in`
 - **Sync (iOS/macOS)**: `icloud_storage`
 - **IDs**: `uuid` v4
@@ -95,6 +96,9 @@ dart run flutter_launcher_icons
 ### Recipe Books
 - A `RecipeBook` (`recipe_books` box, `BookBloc`/`RecipeBookRepository`) is a shareable collection. Membership is **many-to-many and stored on the recipe**: `Recipe.bookIds` is the source of truth, so adding/removing a recipe to/from a book is a `RecipeBloc.UpdateRecipe` with a modified `bookIds` (use `Recipe.copyWith`).
 - `BookDetailScreen` derives its member list and mosaic cover from recipes whose `bookIds` contains the book id. Social/sharing (members, permissions, invite, activity) is **not built** — `_SocialPlaceholder`.
+
+### Export / Import & Delete-all
+- `LibraryIoService` serialises recipes/books/tags. `exportZipFile` bundles `library.json` + a `photos/` folder (images referenced by relative path); `exportJsonFile` is data-only. **Import always adds new copies**: ids are regenerated, `bookIds` remapped to the freshly created books, and bundled photos copied into app storage with new paths. Settings → **Data** drives it (`share_plus` to export, `file_picker` to import; reload the blocs after). **Delete all data** calls each repo's `clearAll()` behind a confirm dialog.
 
 ### Settings & Tags
 - `SettingsScreen` is a self-contained grouped iOS list (no more `SettingsList`); `MainScreen` shows it full-width on desktop (only Recipes uses the two-pane). Rows route to `/settings/{theme,about,tags,books,sync}`.
