@@ -10,7 +10,7 @@ OmNomNom is a personal recipe organizer. Users create and edit recipes with a ti
 
 - **Flutter** (Material 3, targets iOS / Android / macOS)
 - **Dart SDK** ^3.10.1
-- **State**: `flutter_bloc` — four BLoCs (Recipe, Folder, Book, Settings), all provided at the root
+- **State**: `flutter_bloc` — five BLoCs (Recipe, Folder, Book, Tag, Settings), all provided at the root
 - **Local DB**: `hive` — NoSQL key-value store with generated type adapters
 - **Routing**: `go_router` v17
 - **Fonts**: `google_fonts` — Inter throughout
@@ -77,7 +77,7 @@ dart run flutter_launcher_icons
 
 ### Hive
 - Recipe box is named `recipes_v2` (not `recipes`). If you change the `Recipe` model schema in a breaking way, rename the box and handle migration.
-- Type IDs are permanent: Ingredient=0, Folder=1, Recipe=2, Instruction=3, RecipeBook=4. Never reuse an ID, even for a deleted model.
+- Type IDs are permanent: Ingredient=0, Folder=1, Recipe=2, Instruction=3, RecipeBook=4, Tag=5. Never reuse an ID, even for a deleted model.
 - Adapters are hand-maintained: `build_runner` cannot run because the `analyzer ^8.0.0` override is incompatible with the codegen stack. After a `@HiveField` change, edit the matching `*.g.dart` by hand (mechanical format) and add a round-trip test, rather than running `dart run build_runner`.
 - Hive is opened once during startup in `main()`. Boxes are accessed via `Hive.box<T>()` thereafter (synchronous, already open).
 - The `settings` box is managed entirely by `SettingsBloc` — other code should not open or write to it directly.
@@ -95,6 +95,11 @@ dart run flutter_launcher_icons
 ### Recipe Books
 - A `RecipeBook` (`recipe_books` box, `BookBloc`/`RecipeBookRepository`) is a shareable collection. Membership is **many-to-many and stored on the recipe**: `Recipe.bookIds` is the source of truth, so adding/removing a recipe to/from a book is a `RecipeBloc.UpdateRecipe` with a modified `bookIds` (use `Recipe.copyWith`).
 - `BookDetailScreen` derives its member list and mosaic cover from recipes whose `bookIds` contains the book id. Social/sharing (members, permissions, invite, activity) is **not built** — `_SocialPlaceholder`.
+
+### Settings & Tags
+- `SettingsScreen` is a self-contained grouped iOS list (no more `SettingsList`); `MainScreen` shows it full-width on desktop (only Recipes uses the two-pane). Rows route to `/settings/{theme,about,tags,books,sync}`.
+- Tags are a registry (`Tag` typeId 5, `tags` box, `TagBloc`/`TagRepository`) layered over the free-form `Recipe.labels` strings; a `Tag` adds a stable id + colour. `TagsScreen` shows the **union** of registered tags and labels-in-use. Rename/delete fan out to recipes via `RecipeBloc.UpdateRecipe` (relabel / strip the label), and the editor still writes plain label strings.
+- Sync stays future work: `SyncStatusScreen` keeps the existing functional `SettingsBloc` toggle/push/pull unchanged and marks the device/storage view as PLACEHOLDER.
 
 ### Images
 - Images must be copied into `getApplicationDocumentsDirectory()` under a UUID filename before the path is stored on the recipe. Never store a gallery temp path or a path outside appDocDir.

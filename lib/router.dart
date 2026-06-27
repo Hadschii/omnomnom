@@ -1,9 +1,12 @@
 import 'package:go_router/go_router.dart';
 import 'screens/book_detail_screen.dart';
+import 'screens/books_management_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/cook_screen.dart';
 import 'screens/recipe_detail_screen.dart';
 import 'screens/recipe_edit_screen.dart';
+import 'screens/sync_status_screen.dart';
+import 'screens/tags_screen.dart';
 import 'screens/theme_settings_screen.dart';
 import 'screens/about_settings_screen.dart';
 
@@ -36,6 +39,18 @@ final router = GoRouter(
             GoRoute(
               path: 'about',
               builder: (context, state) => const AboutSettingsScreen(),
+            ),
+            GoRoute(
+              path: 'tags',
+              builder: (context, state) => const TagsScreen(),
+            ),
+            GoRoute(
+              path: 'books',
+              builder: (context, state) => const BooksManagementScreen(),
+            ),
+            GoRoute(
+              path: 'sync',
+              builder: (context, state) => const SyncStatusScreen(),
             ),
           ],
         ),
