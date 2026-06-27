@@ -40,34 +40,43 @@ class RecipeRepository {
     return _box.values.toList();
   }
 
+  /// Runs a cloud-sync side effect best-effort. The local write has already
+  /// happened by the time this is called, so a sync failure (e.g. iCloud not
+  /// configured — a placeholder container id, or the user not signed in) must
+  /// never fail the local operation. Failures are logged, not thrown.
+  Future<void> _trySync(Future<void> Function() op) async {
+    if (!_isSyncEnabled || _syncService == null) return;
+    try {
+      await op();
+      _syncCompletedController.add(DateTime.now());
+    } catch (e) {
+      print('RecipeRepository: cloud sync skipped (non-fatal): $e');
+    }
+  }
+
   Future<void> addRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    if (_isSyncEnabled && _syncService != null) {
+    await _trySync(() async {
       await _syncService!.uploadRecipe(recipe);
       if (recipe.imagePath != null) {
         await _syncService!.uploadImage(recipe.imagePath!);
       }
-      _syncCompletedController.add(DateTime.now()); // Emit event
-    }
+    });
   }
 
   Future<void> updateRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    if (_isSyncEnabled && _syncService != null) {
+    await _trySync(() async {
       await _syncService!.uploadRecipe(recipe);
       if (recipe.imagePath != null) {
         await _syncService!.uploadImage(recipe.imagePath!);
       }
-      _syncCompletedController.add(DateTime.now()); // Emit event
-    }
+    });
   }
 
   Future<void> deleteRecipe(String id) async {
     await _box.delete(id);
-    if (_isSyncEnabled && _syncService != null) {
-      await _syncService!.deleteRecipe(id);
-      _syncCompletedController.add(DateTime.now()); // Emit event
-    }
+    await _trySync(() => _syncService!.deleteRecipe(id));
   }
 
   // Helper to clear all recipes (useful for testing/debugging)
