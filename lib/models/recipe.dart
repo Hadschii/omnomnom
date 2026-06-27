@@ -39,6 +39,12 @@ class Recipe {
   @HiveField(10)
   final int? cookTime; // in minutes
 
+  /// The recipe books this recipe belongs to (many-to-many). A recipe can be
+  /// in 0..n books. This is the source of truth for book membership. Null on
+  /// records created before this field existed.
+  @HiveField(11)
+  final List<String>? bookIds;
+
   Recipe({
     required this.id,
     required this.title,
@@ -51,5 +57,38 @@ class Recipe {
     this.servings,
     this.prepTime,
     this.cookTime,
+    this.bookIds,
   });
+
+  /// Returns a copy with the given fields replaced. Each argument falls back to
+  /// the current value when omitted (so nullable fields can't be cleared here).
+  Recipe copyWith({
+    String? id,
+    String? title,
+    List<Ingredient>? ingredients,
+    List<Instruction>? instructions,
+    String? folderId,
+    List<String>? labels,
+    DateTime? createdAt,
+    String? imagePath,
+    int? servings,
+    int? prepTime,
+    int? cookTime,
+    List<String>? bookIds,
+  }) {
+    return Recipe(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      ingredients: ingredients ?? this.ingredients,
+      instructions: instructions ?? this.instructions,
+      folderId: folderId ?? this.folderId,
+      labels: labels ?? this.labels,
+      createdAt: createdAt ?? this.createdAt,
+      imagePath: imagePath ?? this.imagePath,
+      servings: servings ?? this.servings,
+      prepTime: prepTime ?? this.prepTime,
+      cookTime: cookTime ?? this.cookTime,
+      bookIds: bookIds ?? this.bookIds,
+    );
+  }
 }

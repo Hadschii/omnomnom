@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'blocs/book/book_bloc.dart';
+import 'blocs/book/book_event.dart';
 import 'blocs/folder/folder_bloc.dart';
 import 'blocs/folder/folder_event.dart';
 import 'blocs/recipe/recipe_bloc.dart';
@@ -10,12 +12,18 @@ import 'blocs/recipe/recipe_event.dart';
 import 'blocs/settings/settings_bloc.dart';
 import 'blocs/settings/settings_event.dart';
 import 'blocs/settings/settings_state.dart';
+import 'blocs/tag/tag_bloc.dart';
+import 'blocs/tag/tag_event.dart';
 import 'models/folder.dart';
 import 'models/ingredient.dart';
 import 'models/instruction.dart';
 import 'models/recipe.dart';
+import 'models/recipe_book.dart';
+import 'models/tag.dart';
 import 'repositories/folder_repository.dart';
+import 'repositories/recipe_book_repository.dart';
 import 'repositories/recipe_repository.dart';
+import 'repositories/tag_repository.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
@@ -31,28 +39,40 @@ void main() async {
   Hive.registerAdapter(InstructionAdapter());
   Hive.registerAdapter(FolderAdapter());
   Hive.registerAdapter(RecipeAdapter());
+  Hive.registerAdapter(RecipeBookAdapter());
+  Hive.registerAdapter(TagAdapter());
 
   // Initialize Repositories
   final recipeRepository = RecipeRepository();
   final folderRepository = FolderRepository();
-  
+  final bookRepository = RecipeBookRepository();
+  final tagRepository = TagRepository();
+
   await recipeRepository.init();
   await folderRepository.init();
+  await bookRepository.init();
+  await tagRepository.init();
 
   runApp(OmnomnomApp(
     recipeRepository: recipeRepository,
     folderRepository: folderRepository,
+    bookRepository: bookRepository,
+    tagRepository: tagRepository,
   ));
 }
 
 class OmnomnomApp extends StatelessWidget {
   final RecipeRepository recipeRepository;
   final FolderRepository folderRepository;
+  final RecipeBookRepository bookRepository;
+  final TagRepository tagRepository;
 
   const OmnomnomApp({
     super.key,
     required this.recipeRepository,
     required this.folderRepository,
+    required this.bookRepository,
+    required this.tagRepository,
   });
 
   @override
@@ -61,6 +81,8 @@ class OmnomnomApp extends StatelessWidget {
       providers: [
         RepositoryProvider.value(value: recipeRepository),
         RepositoryProvider.value(value: folderRepository),
+        RepositoryProvider.value(value: bookRepository),
+        RepositoryProvider.value(value: tagRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -73,6 +95,16 @@ class OmnomnomApp extends StatelessWidget {
             create: (context) => FolderBloc(
               folderRepository: folderRepository,
             )..add(LoadFolders()),
+          ),
+          BlocProvider(
+            create: (context) => BookBloc(
+              bookRepository: bookRepository,
+            )..add(LoadBooks()),
+          ),
+          BlocProvider(
+            create: (context) => TagBloc(
+              tagRepository: tagRepository,
+            )..add(LoadTags()),
           ),
           BlocProvider(
             create: (context) => SettingsBloc(

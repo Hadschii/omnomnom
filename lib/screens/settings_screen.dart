@@ -1,214 +1,344 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import '../blocs/book/book_bloc.dart';
+import '../blocs/book/book_state.dart';
 import '../blocs/settings/settings_bloc.dart';
 import '../blocs/settings/settings_state.dart';
-import '../blocs/settings/settings_event.dart';
+import '../blocs/tag/tag_bloc.dart';
+import '../blocs/tag/tag_state.dart';
+import '../theme/recipe_accents.dart';
+
+const _brand = Color(0xFFF69021);
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final bookCount = switch (context.watch<BookBloc>().state) {
+      BookLoaded(:final books) => books.length,
+      _ => 0,
+    };
+    final tagCount = switch (context.watch<TagBloc>().state) {
+      TagLoaded(:final tags) => tags.length,
+      _ => 0,
+    };
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
+      backgroundColor: const Color(0xFFF5F5F7),
+      body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 40),
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(22, 8, 22, 12),
+            child: Text('Settings',
+                style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5)),
+          ),
+          // Profile — PLACEHOLDER: there are no accounts yet, this is a local
+          // library; an account/profile lands with sharing.
+          _Card(rows: [
+            _NavRow(
+              leadingColor: _brand,
+              leading: const Text('🍳', style: TextStyle(fontSize: 22)),
+              title: 'Your Library',
+              subtitle: 'On this device · accounts coming with sharing',
+              onTap: null,
+            ),
+          ]),
+          // Sync summary -> dedicated screen (functional toggle lives there).
+          _SyncSummaryCard(),
+
+          _SectionHeader('LIBRARY'),
+          _Card(rows: [
+            _NavRow(
+              leadingColor: _brand,
+              leading: const Icon(Icons.menu_book, color: Colors.white, size: 17),
+              title: 'Recipe Books',
+              trailing: Text('$bookCount',
+                  style: const TextStyle(fontSize: 15, color: metaGrey)),
+              onTap: () => context.go('/settings/books'),
+            ),
+            _NavRow(
+              leadingColor: const Color(0xFF6E5BD8),
+              leading: const Icon(Icons.sell_outlined,
+                  color: Colors.white, size: 17),
+              title: 'Tags',
+              trailing: Text('$tagCount',
+                  style: const TextStyle(fontSize: 15, color: metaGrey)),
+              onTap: () => context.go('/settings/tags'),
+            ),
+          ]),
+
+          _SectionHeader('APPEARANCE'),
+          _Card(rows: [
+            _NavRow(
+              leadingColor: const Color(0xFF1C1C1E),
+              leading: const Icon(Icons.brightness_6,
+                  color: Colors.white, size: 17),
+              title: 'Theme',
+              trailing: BlocBuilder<SettingsBloc, SettingsState>(
+                builder: (context, s) => Text(_themeName(s.themeMode),
+                    style: const TextStyle(fontSize: 15, color: metaGrey)),
+              ),
+              onTap: () => context.go('/settings/theme'),
+            ),
+            // PLACEHOLDER: per-recipe accent extraction isn't implemented;
+            // the toggle is inert for now.
+            _SwitchRow(
+              leadingColor: const Color(0xFFD2542B),
+              leading:
+                  const Icon(Icons.palette_outlined, color: Colors.white, size: 17),
+              title: 'Accent colour from photo',
+              value: false,
+              onChanged: (_) => _soon(context, 'Accent from photo'),
+            ),
+            // PLACEHOLDER: unit conversion not implemented.
+            _NavRow(
+              leadingColor: const Color(0xFF4E8A4F),
+              leading: const Icon(Icons.straighten, color: Colors.white, size: 17),
+              title: 'Units',
+              trailing: const Text('Metric',
+                  style: TextStyle(fontSize: 15, color: metaGrey)),
+              onTap: () => _soon(context, 'Units'),
+            ),
+          ]),
+
+          _SectionHeader('COOKING'),
+          _Card(rows: [
+            // PLACEHOLDER: timer sound preference not implemented.
+            _SwitchRow(
+              leadingColor: _brand,
+              leading: const Icon(Icons.notifications_active_outlined,
+                  color: Colors.white, size: 17),
+              title: 'Timer sounds',
+              value: true,
+              onChanged: (_) => _soon(context, 'Timer sounds'),
+            ),
+            // PLACEHOLDER: step text size preference not implemented.
+            _NavRow(
+              leadingColor: const Color(0xFF6E5BD8),
+              leading:
+                  const Icon(Icons.format_size, color: Colors.white, size: 17),
+              title: 'Step text size',
+              trailing: const Text('Large',
+                  style: TextStyle(fontSize: 15, color: metaGrey)),
+              onTap: () => _soon(context, 'Step text size'),
+            ),
+          ]),
+
+          _SectionHeader('ABOUT'),
+          _Card(rows: [
+            _NavRow(
+              leadingColor: const Color(0xFF8E8E93),
+              leading:
+                  const Icon(Icons.info_outline, color: Colors.white, size: 17),
+              title: 'About',
+              onTap: () => context.go('/settings/about'),
+            ),
+          ]),
+        ],
       ),
-      body: BlocListener<SettingsBloc, SettingsState>(
-        listenWhen: (previous, current) => previous.syncStatus != current.syncStatus,
-        listener: (context, state) {
-          if (state.syncStatus == SyncStatus.loading) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Text('Syncing...'),
-                    ],
-                  ),
-                  duration: Duration(days: 1), // Indefinite until dismissed
+    );
+  }
+
+  static String _themeName(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => 'System',
+        ThemeMode.light => 'Light',
+        ThemeMode.dark => 'Dark',
+      };
+
+  static void _soon(BuildContext context, String what) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+          SnackBar(content: Text('$what — coming soon (PLACEHOLDER)')));
+  }
+}
+
+class _SyncSummaryCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, s) {
+        final on = s.isSyncEnabled;
+        return _Card(rows: [
+          _NavRow(
+            leadingColor: const Color(0xFF34A0E0),
+            leading: const Icon(Icons.cloud_outlined,
+                color: Colors.white, size: 18),
+            title: 'iCloud Sync',
+            subtitleWidget: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                      color: on ? const Color(0xFF34C759) : metaGrey,
+                      shape: BoxShape.circle),
                 ),
-              );
-          } else if (state.syncStatus == SyncStatus.success) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                const SnackBar(
-                  content: Text('Sync completed successfully!'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-          } else if (state.syncStatus == SyncStatus.failure) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text('Sync failed: ${state.syncErrorMessage ?? "Unknown error"}'),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 5),
-                ),
-              );
-          }
-        },
-        child: SettingsList(
-          onTap: (setting) {
-            if (setting == 'theme') {
-              context.go('/settings/theme');
-            } else if (setting == 'about') {
-              context.go('/settings/about');
-            }
-          },
+                const SizedBox(width: 5),
+                Text(on ? 'On' : 'Off',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: on ? const Color(0xFF2E7D4F) : metaGrey,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+            onTap: () => context.go('/settings/sync'),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+// ---- Reusable iOS-style list primitives ----------------------------------
+
+class _SectionHeader extends StatelessWidget {
+  final String text;
+  const _SectionHeader(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(26, 18, 26, 8),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9B9B9B),
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w600)),
+      );
+}
+
+class _Card extends StatelessWidget {
+  final List<Widget> rows;
+  const _Card({required this.rows});
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      children.add(rows[i]);
+      if (i != rows.length - 1) {
+        children.add(const Divider(
+            height: 1, thickness: 1, indent: 15, color: Color(0xFFF2F2F4)));
+      }
+    }
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(15)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: children),
+    );
+  }
+}
+
+class _IconBox extends StatelessWidget {
+  final Color color;
+  final Widget child;
+  const _IconBox({required this.color, required this.child});
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration:
+            BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+        child: child,
+      );
+}
+
+class _NavRow extends StatelessWidget {
+  final Color leadingColor;
+  final Widget leading;
+  final String title;
+  final String? subtitle;
+  final Widget? subtitleWidget;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _NavRow({
+    required this.leadingColor,
+    required this.leading,
+    required this.title,
+    this.subtitle,
+    this.subtitleWidget,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+        child: Row(
+          children: [
+            _IconBox(color: leadingColor, child: leading),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w500)),
+                  if (subtitleWidget != null) ...[
+                    const SizedBox(height: 2),
+                    subtitleWidget!,
+                  ] else if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle!,
+                        style: const TextStyle(fontSize: 12, color: metaGrey)),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null) ...[trailing!, const SizedBox(width: 6)],
+            if (onTap != null)
+              const Icon(Icons.chevron_right, size: 20, color: Color(0xFFC7C7CC)),
+          ],
         ),
       ),
     );
   }
 }
 
-class SettingsList extends StatelessWidget {
-  final Function(String) onTap;
+class _SwitchRow extends StatelessWidget {
+  final Color leadingColor;
+  final Widget leading;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
-  const SettingsList({super.key, required this.onTap});
+  const _SwitchRow({
+    required this.leadingColor,
+    required this.leading,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        _buildSectionHeader(context, 'General'),
-        BlocBuilder<SettingsBloc, SettingsState>(
-          builder: (context, state) {
-            return Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.brightness_6),
-                  title: const Text('Theme'),
-                  subtitle: Text(_getThemeModeName(state.themeMode)),
-                  onTap: () => onTap('theme'),
-                  trailing: const Icon(Icons.chevron_right),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(Icons.cloud_sync),
-                  title: const Text('Cloud Sync'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Sync recipes across devices'),
-                      if (state.isSyncEnabled && state.lastSyncDate != null)
-                        Text(
-                          'Last synced: ${_formatDate(state.lastSyncDate!)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  ),
-                  value: state.isSyncEnabled,
-                  onChanged: (value) {
-                    if (value) {
-                      _showSyncConfirmationDialog(context);
-                    } else {
-                      context.read<SettingsBloc>().add(const ToggleSync(false));
-                    }
-                  },
-                ),
-                if (state.isSyncEnabled) ...[
-                  ListTile(
-                    leading: const Icon(Icons.cloud_upload),
-                    title: const Text('Push to Cloud'),
-                    subtitle: const Text('Upload local recipes to cloud'),
-                    onTap: () {
-                      context.read<SettingsBloc>().add(const TriggerPushSync());
-                    },
-                    trailing: const Icon(Icons.chevron_right),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.cloud_download),
-                    title: const Text('Pull from Cloud'),
-                    subtitle: const Text('Download recipes from cloud (Overwrites local)'),
-                    onTap: () {
-                      context.read<SettingsBloc>().add(const TriggerPullSync());
-                    },
-                    trailing: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-        const Divider(),
-        _buildSectionHeader(context, 'App Info'),
-        ListTile(
-          leading: const Icon(Icons.info_outline),
-          title: const Text('About'),
-          onTap: () => onTap('about'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _showSyncConfirmationDialog(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Enable Cloud Sync?'),
-          content: const Text(
-            'Enabling sync will overwrite all local recipes with data from the cloud. '
-            'This action cannot be undone.\n\n'
-            'Are you sure you want to proceed?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Enable & Overwrite'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true && context.mounted) {
-      context.read<SettingsBloc>().add(const ToggleSync(true));
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+      child: Row(
+        children: [
+          _IconBox(color: leadingColor, child: leading),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w500)),
+          ),
+          Switch(value: value, onChanged: onChanged, activeTrackColor: _brand),
+        ],
       ),
     );
-  }
-
-  String _getThemeModeName(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.system:
-        return 'System Default';
-      case ThemeMode.light:
-        return 'Light Mode';
-      case ThemeMode.dark:
-        return 'Dark Mode';
-    }
   }
 }

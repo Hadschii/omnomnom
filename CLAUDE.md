@@ -10,7 +10,7 @@ OmNomNom is a personal recipe organizer. Users create and edit recipes with a ti
 
 - **Flutter** (Material 3, targets iOS / Android / macOS)
 - **Dart SDK** ^3.10.1
-- **State**: `flutter_bloc` — three BLoCs (Recipe, Folder, Settings), all provided at the root
+- **State**: `flutter_bloc` — five BLoCs (Recipe, Folder, Book, Tag, Settings), all provided at the root
 - **Local DB**: `hive` — NoSQL key-value store with generated type adapters
 - **Routing**: `go_router` v17
 - **Fonts**: `google_fonts` — Inter throughout
@@ -77,7 +77,8 @@ dart run flutter_launcher_icons
 
 ### Hive
 - Recipe box is named `recipes_v2` (not `recipes`). If you change the `Recipe` model schema in a breaking way, rename the box and handle migration.
-- Type IDs are permanent: Ingredient=0, Folder=1, Recipe=2, Instruction=3. Never reuse an ID, even for a deleted model.
+- Type IDs are permanent: Ingredient=0, Folder=1, Recipe=2, Instruction=3, RecipeBook=4, Tag=5. Never reuse an ID, even for a deleted model.
+- Adapters are hand-maintained: `build_runner` cannot run because the `analyzer ^8.0.0` override is incompatible with the codegen stack. After a `@HiveField` change, edit the matching `*.g.dart` by hand (mechanical format) and add a round-trip test, rather than running `dart run build_runner`.
 - Hive is opened once during startup in `main()`. Boxes are accessed via `Hive.box<T>()` thereafter (synchronous, already open).
 - The `settings` box is managed entirely by `SettingsBloc` — other code should not open or write to it directly.
 
@@ -85,10 +86,20 @@ dart run flutter_launcher_icons
 - Use `context.go('/path')` for imperative navigation and `context.pop()` to go back.
 - `MainScreen` is the shell for both tabs and for recipe detail on mobile. The router reuses it with different parameters rather than stacking separate screens.
 
-### Edit screen (ListItem pattern)
-- The edit form never works with `Ingredient` or `Instruction` objects directly. It uses `ListItem` subclasses (`HeaderItem`, `IngredientItem`, `InstructionItem`) defined in `edit_screen_helpers.dart`.
-- The flat `_uiIngredients` / `_uiInstructions` lists interleave `HeaderItem`s as group dividers. On save, the list is walked and the last-seen `HeaderItem` name becomes the `group` for subsequent content items.
-- When a user types an ingredient like "100g Mehl" and presses the check icon, the string is run through `IngredientParser.parse()` which splits it into `{amount: "100 g", name: "Mehl"}`. Always use the parser — do not split ingredient strings manually.
+### Edit screen
+- `RecipeEditScreen` mirrors the recipe view: cover photo → title → servings/total-time → an `Ingredients | Steps` segmented switch → the section's content. It holds its own mutable `_EditIngredient` / `_EditStep` working models (not `Ingredient`/`Instruction` directly), mapped from the recipe on load and back to model objects on save.
+- Ingredient groups are named buckets created only in the Ingredients tab. A step references 0..n of those groups via `_StepEditorSheet` (the per-step editor: photo, instruction text, optional `m:ss` timer, group multi-select).
+- On save, steps write `Instruction.timerSeconds`, `.groups` (with legacy `.group` = first, for back-compat) and `.photoPath`; ingredients keep their `group`.
+- When a user types an ingredient like "100g Mehl", run it through `IngredientParser.parse()` → `{amount: "100 g", name: "Mehl"}`. Always use the parser — do not split ingredient strings manually.
+
+### Recipe Books
+- A `RecipeBook` (`recipe_books` box, `BookBloc`/`RecipeBookRepository`) is a shareable collection. Membership is **many-to-many and stored on the recipe**: `Recipe.bookIds` is the source of truth, so adding/removing a recipe to/from a book is a `RecipeBloc.UpdateRecipe` with a modified `bookIds` (use `Recipe.copyWith`).
+- `BookDetailScreen` derives its member list and mosaic cover from recipes whose `bookIds` contains the book id. Social/sharing (members, permissions, invite, activity) is **not built** — `_SocialPlaceholder`.
+
+### Settings & Tags
+- `SettingsScreen` is a self-contained grouped iOS list (no more `SettingsList`); `MainScreen` shows it full-width on desktop (only Recipes uses the two-pane). Rows route to `/settings/{theme,about,tags,books,sync}`.
+- Tags are a registry (`Tag` typeId 5, `tags` box, `TagBloc`/`TagRepository`) layered over the free-form `Recipe.labels` strings; a `Tag` adds a stable id + colour. `TagsScreen` shows the **union** of registered tags and labels-in-use. Rename/delete fan out to recipes via `RecipeBloc.UpdateRecipe` (relabel / strip the label), and the editor still writes plain label strings.
+- Sync stays future work: `SyncStatusScreen` keeps the existing functional `SettingsBloc` toggle/push/pull unchanged and marks the device/storage view as PLACEHOLDER.
 
 ### Images
 - Images must be copied into `getApplicationDocumentsDirectory()` under a UUID filename before the path is stored on the recipe. Never store a gallery temp path or a path outside appDocDir.
@@ -131,7 +142,7 @@ On add/update/delete with sync enabled, `RecipeRepository` emits `onSyncComplete
 `lib/screens/home_screen.dart` exports both `HomeScreen` and `RecipeList`. `RecipeList` is reused in `MainScreen`'s desktop layout. `SettingsList` is similarly defined in `settings_screen.dart` and reused in `MainScreen`.
 
 **Search is not implemented**
-The search `IconButton` in `HomeScreen`'s AppBar has a `TODO` and does nothing.
+The search `IconButton` in `HomeScreen`'s AppBar shows a "coming soon" PLACEHOLDER snackbar — there is no live filtering yet.
 
 **Folder management is incomplete**
 Folders can be created from the `RecipeEditScreen` form, but there is no UI to rename or delete folders.

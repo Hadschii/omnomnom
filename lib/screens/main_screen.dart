@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'home_screen.dart';
+import 'books_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'settings_screen.dart';
-import '../models/recipe.dart';
-import '../widgets/theme_selector.dart';
-import '../widgets/about_view.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialTab;
@@ -24,7 +22,6 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late int _selectedIndex;
   String? _selectedRecipeId;
-  String? _selectedSetting;
 
   @override
   void initState() {
@@ -58,22 +55,23 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            // Reset selection when switching tabs
-            if (index == 0) {
-              // Keep recipe selection or reset? Let's keep.
-            } else {
-              // Default to first setting? Or none.
-              _selectedSetting = null;
-            }
+            // Switching tabs leaves any open recipe detail so each tab opens
+            // to its own root.
+            _selectedRecipeId = null;
           });
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.book),
+            icon: Icon(Icons.restaurant_menu),
             label: 'Recipes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book),
+            label: 'Books',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
@@ -103,12 +101,21 @@ class _MainScreenState extends State<MainScreen> {
       index: _selectedIndex,
       children: [
         const HomeScreen(),
+        const BooksScreen(),
         const SettingsScreen(),
       ],
     );
   }
 
   Widget _buildDesktopBody() {
+    // Books and Settings show full-width; only Recipes uses the master/detail
+    // split.
+    if (_selectedIndex == 1) {
+      return const BooksScreen();
+    }
+    if (_selectedIndex == 2) {
+      return const SettingsScreen();
+    }
     return Row(
       children: [
         // Left Pane (List)
@@ -126,86 +133,39 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildDesktopLeftPane() {
-    if (_selectedIndex == 0) {
-      return Column(
-        children: [
-          AppBar(
-            title: const Text('Recipes'),
-            automaticallyImplyLeading: false,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () => context.go('/recipe/new'),
-              ),
-            ],
-          ),
-          Expanded(
-            child: RecipeList(
-              onRecipeSelected: (recipe) {
-                setState(() {
-                  _selectedRecipeId = recipe.id;
-                });
-              },
+    // Only the Recipes tab uses the master/detail split; Books and Settings
+    // are handled full-width in _buildDesktopBody.
+    return Column(
+      children: [
+        AppBar(
+          title: const Text('Recipes'),
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => context.go('/recipe/new'),
             ),
+          ],
+        ),
+        Expanded(
+          child: RecipeList(
+            onRecipeSelected: (recipe) {
+              setState(() {
+                _selectedRecipeId = recipe.id;
+              });
+            },
           ),
-        ],
-      );
-    } else {
-      return Column(
-        children: [
-          AppBar(
-            title: const Text('Settings'),
-            automaticallyImplyLeading: false,
-          ),
-          Expanded(
-            child: SettingsList(
-              onTap: (setting) {
-                setState(() {
-                  _selectedSetting = setting;
-                });
-              },
-            ),
-          ),
-        ],
-      );
-    }
+        ),
+      ],
+    );
   }
 
   Widget _buildDesktopRightPane() {
-    if (_selectedIndex == 0) {
-      if (_selectedRecipeId != null) {
-        return RecipeDetailScreen(
-          recipeId: _selectedRecipeId!,
-          showBackButton: false,
-        );
-      }
-    } else {
-      if (_selectedSetting == 'theme') {
-        return const Center(
-          child: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Theme Settings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                SizedBox(height: 24),
-                ThemeSelector(),
-              ],
-            ),
-          ),
-        );
-      } else if (_selectedSetting == 'about') {
-        return const AboutView();
-      } else {
-        return Center(
-          child: Text(
-            'Select a setting',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-        );
-      }
+    if (_selectedRecipeId != null) {
+      return RecipeDetailScreen(
+        recipeId: _selectedRecipeId!,
+        showBackButton: false,
+      );
     }
 
     return Center(

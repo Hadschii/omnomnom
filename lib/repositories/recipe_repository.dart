@@ -139,6 +139,7 @@ class RecipeRepository {
           servings: recipe.servings,
           prepTime: recipe.prepTime,
           cookTime: recipe.cookTime,
+          bookIds: recipe.bookIds,
         );
         await _box.put(updatedRecipe.id, updatedRecipe);
       }
