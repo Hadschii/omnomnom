@@ -59,4 +59,36 @@ class Recipe {
     this.cookTime,
     this.bookIds,
   });
+
+  /// Returns a copy with the given fields replaced. Each argument falls back to
+  /// the current value when omitted (so nullable fields can't be cleared here).
+  Recipe copyWith({
+    String? id,
+    String? title,
+    List<Ingredient>? ingredients,
+    List<Instruction>? instructions,
+    String? folderId,
+    List<String>? labels,
+    DateTime? createdAt,
+    String? imagePath,
+    int? servings,
+    int? prepTime,
+    int? cookTime,
+    List<String>? bookIds,
+  }) {
+    return Recipe(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      ingredients: ingredients ?? this.ingredients,
+      instructions: instructions ?? this.instructions,
+      folderId: folderId ?? this.folderId,
+      labels: labels ?? this.labels,
+      createdAt: createdAt ?? this.createdAt,
+      imagePath: imagePath ?? this.imagePath,
+      servings: servings ?? this.servings,
+      prepTime: prepTime ?? this.prepTime,
+      cookTime: cookTime ?? this.cookTime,
+      bookIds: bookIds ?? this.bookIds,
+    );
+  }
 }

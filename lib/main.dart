@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'blocs/book/book_bloc.dart';
+import 'blocs/book/book_event.dart';
 import 'blocs/folder/folder_bloc.dart';
 import 'blocs/folder/folder_event.dart';
 import 'blocs/recipe/recipe_bloc.dart';
@@ -16,6 +18,7 @@ import 'models/instruction.dart';
 import 'models/recipe.dart';
 import 'models/recipe_book.dart';
 import 'repositories/folder_repository.dart';
+import 'repositories/recipe_book_repository.dart';
 import 'repositories/recipe_repository.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -37,24 +40,29 @@ void main() async {
   // Initialize Repositories
   final recipeRepository = RecipeRepository();
   final folderRepository = FolderRepository();
-  
+  final bookRepository = RecipeBookRepository();
+
   await recipeRepository.init();
   await folderRepository.init();
+  await bookRepository.init();
 
   runApp(OmnomnomApp(
     recipeRepository: recipeRepository,
     folderRepository: folderRepository,
+    bookRepository: bookRepository,
   ));
 }
 
 class OmnomnomApp extends StatelessWidget {
   final RecipeRepository recipeRepository;
   final FolderRepository folderRepository;
+  final RecipeBookRepository bookRepository;
 
   const OmnomnomApp({
     super.key,
     required this.recipeRepository,
     required this.folderRepository,
+    required this.bookRepository,
   });
 
   @override
@@ -63,6 +71,7 @@ class OmnomnomApp extends StatelessWidget {
       providers: [
         RepositoryProvider.value(value: recipeRepository),
         RepositoryProvider.value(value: folderRepository),
+        RepositoryProvider.value(value: bookRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -75,6 +84,11 @@ class OmnomnomApp extends StatelessWidget {
             create: (context) => FolderBloc(
               folderRepository: folderRepository,
             )..add(LoadFolders()),
+          ),
+          BlocProvider(
+            create: (context) => BookBloc(
+              bookRepository: bookRepository,
+            )..add(LoadBooks()),
           ),
           BlocProvider(
             create: (context) => SettingsBloc(

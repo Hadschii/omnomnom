@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../blocs/book/book_bloc.dart';
+import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
 import '../models/recipe.dart';
@@ -64,6 +66,11 @@ class RecipeList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bookState = context.watch<BookBloc>().state;
+    final bookNamesById = <String, String>{
+      if (bookState is BookLoaded)
+        for (final b in bookState.books) b.id: b.name,
+    };
     return BlocBuilder<RecipeBloc, RecipeState>(
       builder: (context, state) {
         if (state is RecipeLoading) {
@@ -95,6 +102,7 @@ class RecipeList extends StatelessWidget {
               final recipe = state.recipes[index - headerCount];
               return _RecipeCard(
                 recipe: recipe,
+                bookNamesById: bookNamesById,
                 onTap: () {
                   if (onRecipeSelected != null) {
                     onRecipeSelected!(recipe);
@@ -112,21 +120,26 @@ class RecipeList extends StatelessWidget {
   }
 }
 
-/// The books a recipe belongs to, shown as overlay chips on its card.
-///
-/// PLACEHOLDER: returns empty until Recipe Books are implemented (Step 7).
-/// Once books exist, this resolves `recipe.bookIds` to their names.
-List<String> _bookNamesFor(Recipe recipe) => const <String>[];
+/// The names of the books a recipe belongs to, resolved from its bookIds.
+List<String> _bookNamesFor(Recipe recipe, Map<String, String> namesById) => [
+      for (final id in recipe.bookIds ?? const <String>[])
+        if (namesById[id] != null) namesById[id]!,
+    ];
 
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
+  final Map<String, String> bookNamesById;
   final VoidCallback onTap;
 
-  const _RecipeCard({required this.recipe, required this.onTap});
+  const _RecipeCard({
+    required this.recipe,
+    required this.bookNamesById,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bookNames = _bookNamesFor(recipe);
+    final bookNames = _bookNamesFor(recipe, bookNamesById);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

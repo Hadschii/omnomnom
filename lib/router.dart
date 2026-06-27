@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'screens/book_detail_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/cook_screen.dart';
 import 'screens/recipe_edit_screen.dart';
@@ -15,6 +16,13 @@ final router = GoRouter(
         GoRoute(
           path: 'books',
           builder: (context, state) => const MainScreen(initialTab: 1),
+          routes: [
+            GoRoute(
+              path: ':id',
+              builder: (context, state) =>
+                  BookDetailScreen(bookId: state.pathParameters['id']!),
+            ),
+          ],
         ),
         GoRoute(
           path: 'settings',
