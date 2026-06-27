@@ -39,7 +39,7 @@ class GoogleDriveSyncService implements SyncService {
          print('GoogleDriveSyncService: Lightweight auth returned null. Requesting interactive authenticate...');
          try {
             account = await _googleSignIn.authenticate();
-            print('GoogleDriveSyncService: Interactive authenticate returned account: ${account?.email}');
+            print('GoogleDriveSyncService: Interactive authenticate returned account: ${account.email}');
          } catch (e) {
             print('GoogleDriveSyncService: Interactive authenticate failed: $e');
             throw Exception('Google interactive authenticate failed: $e');
@@ -48,26 +48,20 @@ class GoogleDriveSyncService implements SyncService {
          print('GoogleDriveSyncService: Lightweight auth successful for ${account.email}');
       }
       
-      if (account != null) {
-        print('GoogleDriveSyncService: Account obtained: ${account.email}');
-        
-        try {
-          print('GoogleDriveSyncService: Requesting authorization for Drive AppData scope...');
-          await account.authorizationClient.authorizeScopes([drive.DriveApi.driveAppdataScope]);
-          
-          // PLACEHOLDER: `authenticatedClient()` was removed in google_sign_in 7.x.
-          // Android Google Drive sync is deferred (sync = later). Stubbed so the
-          // project compiles; restore real client retrieval when wiring up sync.
-          throw UnimplementedError(
-            'Google Drive sync pending migration to google_sign_in 7.x',
-          );
-        } catch (e) {
-          print('GoogleDriveSyncService: Error creating authenticated client: $e');
-          throw Exception('Google Drive client authentication failed: $e');
-        }
-      } else {
-        print('GoogleDriveSyncService: Account is still null after authentication attempts');
-        throw Exception('Sign-in failed. Google account is unauthorized.');
+      print('GoogleDriveSyncService: Account obtained: ${account.email}');
+      
+      try {
+        print('GoogleDriveSyncService: Requesting authorization for Drive AppData scope...');
+        final scopes = [drive.DriveApi.driveAppdataScope];
+        // Try silent authorization first; fall back to interactive prompt.
+        GoogleSignInClientAuthorization? authorization =
+            await account.authorizationClient.authorizationForScopes(scopes);
+        authorization ??= await account.authorizationClient.authorizeScopes(scopes);
+        _driveApi = drive.DriveApi(authorization.authClient(scopes: scopes));
+        print('GoogleDriveSyncService: Drive API initialized successfully');
+      } catch (e) {
+        print('GoogleDriveSyncService: Error creating authenticated client: $e');
+        throw Exception('Google Drive client authentication failed: $e');
       }
     } catch (e) {
       print('GoogleDriveSyncService: Error initializing/signing in to Google: $e');
@@ -280,8 +274,16 @@ class GoogleDriveSyncService implements SyncService {
     return {
       'id': recipe.id,
       'title': recipe.title,
-      'ingredients': recipe.ingredients.map((e) => {'name': e.name, 'amount': e.amount}).toList(),
-      'instructions': recipe.instructions.map((e) => {'description': e.description}).toList(),
+      'ingredients': recipe.ingredients.map((e) => {
+        'name': e.name,
+        'amount': e.amount,
+        'group': e.group,
+      }).toList(),
+      'instructions': recipe.instructions.map((e) => {
+        'description': e.description,
+        'group': e.group,
+        'photoPath': e.photoPath?.split('/').last,
+      }).toList(),
       'folderId': recipe.folderId,
       'labels': recipe.labels,
       'createdAt': recipe.createdAt.toIso8601String(),
@@ -296,8 +298,16 @@ class GoogleDriveSyncService implements SyncService {
     return Recipe(
       id: json['id'],
       title: json['title'],
-      ingredients: (json['ingredients'] as List).map((e) => Ingredient(name: e['name'], amount: e['amount'])).toList(),
-      instructions: (json['instructions'] as List).map((e) => Instruction(description: e['description'])).toList(),
+      ingredients: (json['ingredients'] as List).map((e) => Ingredient(
+        name: e['name'],
+        amount: e['amount'],
+        group: e['group'],
+      )).toList(),
+      instructions: (json['instructions'] as List).map((e) => Instruction(
+        description: e['description'],
+        group: e['group'],
+        photoPath: e['photoPath'],
+      )).toList(),
       folderId: json['folderId'],
       labels: List<String>.from(json['labels']),
       createdAt: DateTime.parse(json['createdAt']),
