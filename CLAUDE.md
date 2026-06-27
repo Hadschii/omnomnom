@@ -124,7 +124,7 @@ dart run flutter_launcher_icons
 The box was renamed at some point (likely a schema change). If you add a non-nullable field to `Recipe`, rename the box again and handle old data.
 
 **iCloud container ID is a placeholder**
-`ICloudSyncService._containerId = 'iCloud.com.example.omnomnom'` must be replaced with the actual provisioned iCloud container ID before iOS/macOS sync will work at all.
+`ICloudSyncService._containerId = 'iCloud.com.example.omnomnom'` must be replaced with the actual provisioned iCloud container ID before iOS/macOS sync will work at all. Until then, enabling sync makes every cloud call throw `E_CTR`. As of the resilience fix, that no longer breaks local CRUD: `RecipeRepository` writes locally first and runs the upload/delete best-effort via `_trySync` (failures are logged, not thrown), so add/edit/delete always succeed locally even with sync on and misconfigured.
 
 **`ingredient.group` and `instruction.group` are not synced**
 Both `_recipeToJson` methods (Google Drive and iCloud) serialize `ingredients` as `{name, amount}` and `instructions` as `{description}` — the `group` field is dropped. Grouped recipes lose their section structure after a cloud round-trip.
