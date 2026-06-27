@@ -18,9 +18,9 @@ class SyncStatusScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: groupedBg(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F7),
+        backgroundColor: groupedBg(context),
         title: const Text('iCloud Sync'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
@@ -65,7 +65,7 @@ class SyncStatusScreen extends StatelessWidget {
                 // Functional controls (existing behaviour).
                 Container(
                   decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardColor(context),
                       borderRadius: BorderRadius.circular(15)),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
@@ -115,7 +115,7 @@ class SyncStatusScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardColor(context),
                       borderRadius: BorderRadius.circular(15)),
                   child: Column(
                     children: [

@@ -151,9 +151,10 @@ class _CookScreenState extends State<CookScreen> {
             child: Container(
               width: 34,
               height: 34,
-              decoration: const BoxDecoration(
-                  color: Color(0xFFF1F1F4), shape: BoxShape.circle),
-              child: const Icon(Icons.close, size: 18, color: Color(0xFF3A3A3C)),
+              decoration: BoxDecoration(
+                  color: subtleFill(context), shape: BoxShape.circle),
+              child: Icon(Icons.close,
+                  size: 18, color: Theme.of(context).colorScheme.onSurface),
             ),
           ),
           Expanded(
@@ -302,11 +303,14 @@ class _CookScreenState extends State<CookScreen> {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: filled ? accent : const Color(0xFFF1F1F4),
+          color: filled ? accent : subtleFill(context),
           shape: BoxShape.circle,
         ),
         child: Icon(icon,
-            size: 22, color: filled ? Colors.white : const Color(0xFF3A3A3C)),
+            size: 22,
+            color: filled
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface),
       ),
     );
   }
@@ -326,7 +330,7 @@ class _CookScreenState extends State<CookScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         decoration: BoxDecoration(
-          color: done ? accent.withValues(alpha: 0.12) : const Color(0xFFF1F1F4),
+          color: done ? accent.withValues(alpha: 0.12) : subtleFill(context),
           borderRadius: BorderRadius.circular(13),
         ),
         child: Row(
@@ -342,8 +346,10 @@ class _CookScreenState extends State<CookScreen> {
             const SizedBox(width: 9),
             Text(
               label,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF3A3A3C)),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface),
             ),
           ],
         ),
@@ -381,9 +387,9 @@ class _CookScreenState extends State<CookScreen> {
       flex: 4,
       child: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF9F8),
-          border: Border(top: BorderSide(color: Color(0xFFECECEF))),
+        decoration: BoxDecoration(
+          color: cardColor(context),
+          border: Border(top: BorderSide(color: hairline(context))),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,7 +499,7 @@ class _CookScreenState extends State<CookScreen> {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: checked ? accent : Colors.white,
+                  color: checked ? accent : cardColor(context),
                   borderRadius: BorderRadius.circular(6),
                   border: checked
                       ? null
@@ -528,7 +534,7 @@ class _CookScreenState extends State<CookScreen> {
                     decoration: checked ? TextDecoration.lineThrough : null,
                     color: checked
                         ? metaGrey
-                        : (isActive ? accent : const Color(0xFF3A3A3C)),
+                        : (isActive ? accent : metaGrey),
                   ),
                 ),
             ],
