@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/book_detail_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/cook_screen.dart';
+import 'screens/recipe_detail_screen.dart';
 import 'screens/recipe_edit_screen.dart';
 import 'screens/theme_settings_screen.dart';
 import 'screens/about_settings_screen.dart';
@@ -43,10 +44,13 @@ final router = GoRouter(
           builder: (context, state) => const RecipeEditScreen(),
         ),
         GoRoute(
+          // A focused, full-screen recipe detail on every platform. (The
+          // desktop home two-pane uses MainScreen's internal selection, not
+          // this route, so it is unaffected.)
           path: 'recipe/:id',
           builder: (context, state) {
             final id = state.pathParameters['id']!;
-            return MainScreen(selectedRecipeId: id);
+            return RecipeDetailScreen(recipeId: id);
           },
           routes: [
             GoRoute(
