@@ -41,9 +41,9 @@ class TagsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: groupedBg(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F7),
+        backgroundColor: groupedBg(context),
         title: const Text('Tags'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
@@ -192,13 +192,13 @@ class _Card extends StatelessWidget {
     for (var i = 0; i < children.length; i++) {
       rows.add(children[i]);
       if (i != children.length - 1) {
-        rows.add(const Divider(
-            height: 1, thickness: 1, indent: 14, color: Color(0xFFF2F2F4)));
+        rows.add(Divider(
+            height: 1, thickness: 1, indent: 14, color: hairline(context)));
       }
     }
     return Container(
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(15)),
+          color: cardColor(context), borderRadius: BorderRadius.circular(15)),
       clipBehavior: Clip.antiAlias,
       child: Column(children: rows),
     );
@@ -216,7 +216,7 @@ class _AddRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(14)),
+            color: cardColor(context), borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
         child: Row(
           children: [

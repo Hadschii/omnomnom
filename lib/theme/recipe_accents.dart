@@ -2,7 +2,28 @@ import 'package:flutter/material.dart';
 import '../models/recipe.dart';
 
 /// Neutral grey used for secondary/meta text throughout the recipe screens.
+/// Readable on both light and dark surfaces.
 const metaGrey = Color(0xFF8E8E93);
+
+// ---- Theme-aware surfaces (iOS grouped-list look in light & dark) ----------
+
+bool _isDark(BuildContext c) => Theme.of(c).brightness == Brightness.dark;
+
+/// Background behind grouped cards (settings-style screens).
+Color groupedBg(BuildContext c) =>
+    _isDark(c) ? const Color(0xFF000000) : const Color(0xFFF5F5F7);
+
+/// A raised card / sheet surface that sits on [groupedBg].
+Color cardColor(BuildContext c) =>
+    _isDark(c) ? const Color(0xFF1C1C1E) : Colors.white;
+
+/// A subtle filled control (segmented tracks, input boxes, tonal chips).
+Color subtleFill(BuildContext c) =>
+    _isDark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFF1F1F4);
+
+/// Hairline divider / border between rows.
+Color hairline(BuildContext c) =>
+    _isDark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F4);
 
 /// The per-recipe accent colour.
 ///

@@ -26,7 +26,7 @@ class SettingsScreen extends StatelessWidget {
     };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: groupedBg(context),
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 40),
         children: [
@@ -222,14 +222,14 @@ class _Card extends StatelessWidget {
     for (var i = 0; i < rows.length; i++) {
       children.add(rows[i]);
       if (i != rows.length - 1) {
-        children.add(const Divider(
-            height: 1, thickness: 1, indent: 15, color: Color(0xFFF2F2F4)));
+        children.add(Divider(
+            height: 1, thickness: 1, indent: 15, color: hairline(context)));
       }
     }
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(15)),
+          color: cardColor(context), borderRadius: BorderRadius.circular(15)),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
     );
