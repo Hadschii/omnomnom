@@ -44,6 +44,9 @@ dependencies:
   path_provider: ^2.1.5
   google_fonts: ^6.3.2
   image_picker: ^1.2.1
+  archive: ^4.0.2
+  share_plus: ^10.1.4
+  file_picker: ^8.1.6
   icloud_storage: ^2.2.0
   googleapis: ^15.0.0
   google_sign_in: ^7.2.0
