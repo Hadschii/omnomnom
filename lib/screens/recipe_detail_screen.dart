@@ -70,10 +70,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   // ---- Nav bar ------------------------------------------------------------
 
   Widget _navBar(BuildContext context, Recipe recipe, Color accent) {
+    final surface = Theme.of(context).colorScheme.surface;
     return SliverAppBar(
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: accent,
+      backgroundColor: surface,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
       leadingWidth: 60,
       leading: widget.showBackButton
           ? Align(
@@ -127,10 +130,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         height: 36,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.32),
+          color: Colors.black.withValues(alpha: 0.07),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 18),
+        child: Icon(icon, color: const Color(0xFF1C1C1E), size: 18),
       ),
     );
   }
@@ -203,6 +206,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       children: [
         for (final label in shown) pill(label),
         if (overflow > 0) pill('+$overflow', muted: true),
+        GestureDetector(
+          onTap: () => _placeholder(context, 'Add tag'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: accent.withValues(alpha: 0.40), width: 1.5),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              '+ Tag',
+              style: TextStyle(
+                color: accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
