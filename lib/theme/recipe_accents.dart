@@ -30,10 +30,11 @@ Color hairline(BuildContext c) =>
 
 const _brandOrange = Color(0xFFF69021);
 
-/// Returns the accent colour for a recipe. Uses the pre-extracted [Recipe.accentColor]
-/// when available; falls back to brand orange for recipes without a photo or
-/// that predate extraction.
-Color accentForRecipe(Recipe recipe) {
+/// Returns the accent colour for a recipe.
+/// When [usePhotoAccent] is false (setting toggled off), always returns brand orange.
+/// Otherwise uses the pre-extracted [Recipe.accentColor], falling back to brand orange.
+Color accentForRecipe(Recipe recipe, {bool usePhotoAccent = true}) {
+  if (!usePhotoAccent) return _brandOrange;
   final c = recipe.accentColor;
   return c != null ? Color(c) : _brandOrange;
 }

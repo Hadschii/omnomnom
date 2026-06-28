@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-import '../blocs/book/book_bloc.dart';
-import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
@@ -16,7 +14,6 @@ import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
-import '../models/recipe_book.dart';
 import '../models/tag.dart';
 import '../services/ingredient_parser.dart';
 import '../theme/recipe_accents.dart';
@@ -235,7 +232,6 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
           _titleField(),
           _metaRow(),
           _tagsSection(),
-          _booksSection(),
           _switch(),
           const SizedBox(height: 6),
           if (_tab == 0) _ingredientsTab() else _stepsTab(),
@@ -464,81 +460,6 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
             child: const Text('Done'),
           ),
         ],
-      ),
-    );
-  }
-
-  // ---- Books ---------------------------------------------------------------
-
-  Widget _booksSection() {
-    return BlocBuilder<BookBloc, BookState>(
-      builder: (context, state) {
-        final books = state is BookLoaded ? state.books : <RecipeBook>[];
-        if (books.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'BOOKS',
-                style: TextStyle(
-                    fontSize: 11, color: metaGrey, letterSpacing: 0.5),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final book in books) _bookChip(book),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _bookChip(RecipeBook book) {
-    final inBook = _bookIds.contains(book.id);
-    return GestureDetector(
-      onTap: () => setState(() {
-        if (inBook) {
-          _bookIds.remove(book.id);
-        } else {
-          _bookIds.add(book.id);
-        }
-      }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-        decoration: BoxDecoration(
-          color: inBook ? _brand.withValues(alpha: 0.12) : subtleFill(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: inBook ? _brand : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              inBook ? Icons.bookmark : Icons.bookmark_border,
-              size: 14,
-              color: inBook ? _brand : metaGrey,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              book.name,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: inBook ? FontWeight.w700 : FontWeight.w500,
-                color: inBook ? _brand : metaGrey,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

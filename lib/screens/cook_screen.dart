@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
+import '../blocs/settings/settings_bloc.dart';
+import '../blocs/settings/settings_state.dart';
 import '../models/recipe.dart';
 import '../theme/recipe_accents.dart';
 
@@ -104,7 +106,8 @@ class _CookScreenState extends State<CookScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        final accent = accentForRecipe(recipe);
+        final usePhotoAccent = context.watch<SettingsBloc>().state.accentFromPhoto;
+        final accent = accentForRecipe(recipe, usePhotoAccent: usePhotoAccent);
         final steps = recipe.instructions;
         if (steps.isEmpty) {
           return Scaffold(

@@ -9,6 +9,7 @@ class SettingsState extends Equatable {
   final DateTime? lastSyncDate;
   final SyncStatus syncStatus;
   final String? syncErrorMessage;
+  final bool accentFromPhoto;
 
   const SettingsState({
     this.themeMode = ThemeMode.system,
@@ -16,6 +17,7 @@ class SettingsState extends Equatable {
     this.lastSyncDate,
     this.syncStatus = SyncStatus.idle,
     this.syncErrorMessage,
+    this.accentFromPhoto = true,
   });
 
   SettingsState copyWith({
@@ -24,13 +26,15 @@ class SettingsState extends Equatable {
     DateTime? lastSyncDate,
     SyncStatus? syncStatus,
     String? syncErrorMessage,
+    bool? accentFromPhoto,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       isSyncEnabled: isSyncEnabled ?? this.isSyncEnabled,
       lastSyncDate: lastSyncDate ?? this.lastSyncDate,
       syncStatus: syncStatus ?? this.syncStatus,
-      syncErrorMessage: syncErrorMessage, // We don't use ?? to allow clearing error message by passing null
+      syncErrorMessage: syncErrorMessage,
+      accentFromPhoto: accentFromPhoto ?? this.accentFromPhoto,
     );
   }
 
@@ -41,5 +45,6 @@ class SettingsState extends Equatable {
         lastSyncDate,
         syncStatus,
         syncErrorMessage,
+        accentFromPhoto,
       ];
 }

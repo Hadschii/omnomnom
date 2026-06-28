@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
+import '../blocs/settings/settings_bloc.dart';
+import '../blocs/settings/settings_state.dart';
 import '../blocs/tag/tag_bloc.dart';
 import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
@@ -58,7 +60,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           );
         }
 
-        final accent = accentForRecipe(recipe);
+        final usePhotoAccent = context.watch<SettingsBloc>().state.accentFromPhoto;
+        final accent = accentForRecipe(recipe, usePhotoAccent: usePhotoAccent);
         return Scaffold(
           body: CustomScrollView(
             slivers: [

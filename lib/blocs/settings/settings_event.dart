@@ -44,3 +44,11 @@ class TriggerPushSync extends SettingsEvent {
 class TriggerPullSync extends SettingsEvent {
   const TriggerPullSync();
 }
+
+class ToggleAccentFromPhoto extends SettingsEvent {
+  final bool enabled;
+  const ToggleAccentFromPhoto(this.enabled);
+
+  @override
+  List<Object> get props => [enabled];
+}

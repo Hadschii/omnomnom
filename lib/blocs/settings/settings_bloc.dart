@@ -11,6 +11,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   static const String _themeModeKey = 'theme_mode';
   static const String _syncEnabledKey = 'sync_enabled';
   static const String _lastSyncDateKey = 'last_sync_date';
+  static const String _accentFromPhotoKey = 'accent_from_photo';
   
   final RecipeRepository _recipeRepository;
 
@@ -23,6 +24,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateLastSyncDate>(_onUpdateLastSyncDate);
     on<TriggerPushSync>(_onTriggerPushSync);
     on<TriggerPullSync>(_onTriggerPullSync);
+    on<ToggleAccentFromPhoto>(_onToggleAccentFromPhoto);
 
     // Listen to sync completion events
     _recipeRepository.onSyncCompleted.listen((date) {
@@ -38,6 +40,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final themeModeIndex = box.get(_themeModeKey, defaultValue: ThemeMode.system.index);
     final themeMode = ThemeMode.values[themeModeIndex];
     final isSyncEnabled = box.get(_syncEnabledKey, defaultValue: false);
+    final accentFromPhoto = box.get(_accentFromPhotoKey, defaultValue: true);
     final lastSyncDateMillis = box.get(_lastSyncDateKey);
     final lastSyncDate = lastSyncDateMillis != null 
         ? DateTime.fromMillisecondsSinceEpoch(lastSyncDateMillis) 
@@ -64,6 +67,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       lastSyncDate: lastSyncDate,
       syncStatus: syncError != null ? SyncStatus.failure : SyncStatus.idle,
       syncErrorMessage: syncError,
+      accentFromPhoto: accentFromPhoto,
     ));
   }
 
@@ -149,5 +153,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         syncErrorMessage: e.toString().replaceAll('Exception: ', ''),
       ));
     }
+  }
+
+  Future<void> _onToggleAccentFromPhoto(
+    ToggleAccentFromPhoto event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final box = await Hive.openBox(_settingsBoxName);
+    await box.put(_accentFromPhotoKey, event.enabled);
+    emit(state.copyWith(accentFromPhoto: event.enabled));
   }
 }

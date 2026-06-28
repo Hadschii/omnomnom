@@ -9,6 +9,7 @@ import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/settings/settings_bloc.dart';
+import '../blocs/settings/settings_event.dart';
 import '../blocs/settings/settings_state.dart';
 import '../blocs/tag/tag_bloc.dart';
 import '../blocs/tag/tag_event.dart';
@@ -96,15 +97,17 @@ class SettingsScreen extends StatelessWidget {
               ),
               onTap: () => context.go('/settings/theme'),
             ),
-            // PLACEHOLDER: per-recipe accent extraction isn't implemented;
-            // the toggle is inert for now.
-            _SwitchRow(
-              leadingColor: const Color(0xFFD2542B),
-              leading:
-                  const Icon(Icons.palette_outlined, color: Colors.white, size: 17),
-              title: 'Accent colour from photo',
-              value: false,
-              onChanged: (_) => _soon(context, 'Accent from photo'),
+            BlocBuilder<SettingsBloc, SettingsState>(
+              builder: (context, s) => _SwitchRow(
+                leadingColor: const Color(0xFFD2542B),
+                leading: const Icon(Icons.palette_outlined,
+                    color: Colors.white, size: 17),
+                title: 'Accent colour from photo',
+                value: s.accentFromPhoto,
+                onChanged: (v) => context
+                    .read<SettingsBloc>()
+                    .add(ToggleAccentFromPhoto(v)),
+              ),
             ),
             // PLACEHOLDER: unit conversion not implemented.
             _NavRow(
