@@ -233,9 +233,11 @@ class LibraryIoService {
       final photos = <ArchiveFile>[];
       for (final f in archive) {
         if (!f.isFile) continue;
-        if (f.name == 'library.json') {
+        // Support both flat layout (library.json) and macOS re-zip which
+        // wraps everything in a folder (some-folder/library.json).
+        if (f.name == 'library.json' || f.name.endsWith('/library.json')) {
           jsonEntry = f;
-        } else if (f.name.startsWith('photos/')) {
+        } else if (f.name.contains('photos/')) {
           photos.add(f);
         }
       }
@@ -244,6 +246,8 @@ class LibraryIoService {
       }
 
       // Copy bundled photos into app storage under fresh names.
+      // Key the resolved map by the relative "photos/<name>" portion so it
+      // matches the references stored in library.json regardless of prefix.
       final dir = await getApplicationDocumentsDirectory();
       final resolved = <String, String>{};
       for (final p in photos) {
@@ -251,7 +255,8 @@ class LibraryIoService {
         final ext = dot >= 0 ? p.name.substring(dot) : '';
         final dest = File('${dir.path}/${_uuid.v4()}$ext');
         await dest.writeAsBytes(p.content);
-        resolved[p.name] = dest.path;
+        final relKey = 'photos/${p.name.split('/').last}';
+        resolved[relKey] = dest.path;
       }
 
       return importFromJsonString(utf8.decode(jsonEntry.content),
