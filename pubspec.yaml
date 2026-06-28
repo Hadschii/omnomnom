@@ -52,6 +52,7 @@ dependencies:
   google_sign_in: ^7.2.0
   extension_google_sign_in_as_googleapis_auth: ^3.0.0
   googleapis_auth: ^2.0.0
+  wakelock_plus: ^1.2.10
 
 dev_dependencies:
   flutter_test:

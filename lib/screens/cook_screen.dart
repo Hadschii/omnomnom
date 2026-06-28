@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
 import '../models/recipe.dart';
@@ -29,8 +30,15 @@ class _CookScreenState extends State<CookScreen> {
   bool _running = false;
 
   @override
+  void initState() {
+    super.initState();
+    WakelockPlus.enable();
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
+    WakelockPlus.disable();
     super.dispose();
   }
 
@@ -166,20 +174,12 @@ class _CookScreenState extends State<CookScreen> {
               style: const TextStyle(fontSize: 13, color: metaGrey),
             ),
           ),
-          GestureDetector(
-            // PLACEHOLDER: "keep screen awake" while cooking needs a wakelock
-            // plugin; stubbed for now.
-            onTap: () => ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
-                  content: Text('Keep screen awake — coming soon'))),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
-              child: Icon(Icons.light_mode_outlined, size: 18, color: accent),
-            ),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: Icon(Icons.light_mode_outlined, size: 18, color: accent),
           ),
         ],
       ),
