@@ -48,6 +48,10 @@ class Recipe {
   @HiveField(11)
   final List<String>? bookIds;
 
+  /// ARGB32 accent colour sampled from [imagePath]. Null until a photo is set.
+  @HiveField(12)
+  final int? accentColor;
+
   Recipe({
     required this.id,
     required this.title,
@@ -61,6 +65,7 @@ class Recipe {
     this.prepTime,
     this.cookTime,
     this.bookIds,
+    this.accentColor,
   });
 
   /// Returns a copy with the given fields replaced. Each argument falls back to
@@ -78,6 +83,7 @@ class Recipe {
     int? prepTime,
     int? cookTime,
     List<String>? bookIds,
+    int? accentColor,
   }) {
     return Recipe(
       id: id ?? this.id,
@@ -92,6 +98,7 @@ class Recipe {
       prepTime: prepTime ?? this.prepTime,
       cookTime: cookTime ?? this.cookTime,
       bookIds: bookIds ?? this.bookIds,
+      accentColor: accentColor ?? this.accentColor,
     );
   }
 }

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import '../blocs/book/book_bloc.dart';
+import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
@@ -14,6 +16,7 @@ import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
+import '../models/recipe_book.dart';
 import '../models/tag.dart';
 import '../services/ingredient_parser.dart';
 import '../theme/recipe_accents.dart';
@@ -58,12 +61,11 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
   int? _prepTime;
   int? _cookTime;
   String? _imagePath;
+  int? _accentColor;
   final _labels = <String>[];
+  List<String> _bookIds = [];
 
-  // Preserved across edit without dedicated UI yet (PLACEHOLDER: book/folder
-  // assignment from the editor comes with the Books work).
   String? _folderId;
-  List<String>? _bookIds;
   DateTime? _createdAt;
 
   final _groups = <String>[]; // ordered ingredient group names
@@ -96,9 +98,10 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
     _prepTime = recipe.prepTime;
     _cookTime = recipe.cookTime;
     _imagePath = recipe.imagePath;
+    _accentColor = recipe.accentColor;
     _labels.addAll(recipe.labels);
     _folderId = recipe.folderId;
-    _bookIds = recipe.bookIds;
+    _bookIds = List.of(recipe.bookIds ?? []);
     _createdAt = recipe.createdAt;
 
     for (final i in recipe.ingredients) {
@@ -170,7 +173,8 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
       servings: _servings,
       prepTime: _prepTime,
       cookTime: _cookTime,
-      bookIds: _bookIds,
+      bookIds: _bookIds.isEmpty ? null : _bookIds,
+      accentColor: _accentColor,
     );
 
     final bloc = context.read<RecipeBloc>();
@@ -183,14 +187,17 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
   }
 
   Future<String?> _pickImage() async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return null;
     try {
       final dir = await getApplicationDocumentsDirectory();
       final ext = picked.path.substring(picked.path.lastIndexOf('.'));
       final saved =
           await File(picked.path).copy('${dir.path}/${const Uuid().v4()}$ext');
+      // Extract accent colour in the background; update state when ready.
+      extractAccentColorFromPath(saved.path).then((color) {
+        if (mounted && color != null) setState(() => _accentColor = color);
+      });
       return saved.path;
     } catch (e) {
       debugPrint('Error saving image: $e');
@@ -228,6 +235,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
           _titleField(),
           _metaRow(),
           _tagsSection(),
+          _booksSection(),
           _switch(),
           const SizedBox(height: 6),
           if (_tab == 0) _ingredientsTab() else _stepsTab(),
@@ -456,6 +464,81 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
             child: const Text('Done'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ---- Books ---------------------------------------------------------------
+
+  Widget _booksSection() {
+    return BlocBuilder<BookBloc, BookState>(
+      builder: (context, state) {
+        final books = state is BookLoaded ? state.books : <RecipeBook>[];
+        if (books.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'BOOKS',
+                style: TextStyle(
+                    fontSize: 11, color: metaGrey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final book in books) _bookChip(book),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bookChip(RecipeBook book) {
+    final inBook = _bookIds.contains(book.id);
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (inBook) {
+          _bookIds.remove(book.id);
+        } else {
+          _bookIds.add(book.id);
+        }
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: inBook ? _brand.withValues(alpha: 0.12) : subtleFill(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: inBook ? _brand : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              inBook ? Icons.bookmark : Icons.bookmark_border,
+              size: 14,
+              color: inBook ? _brand : metaGrey,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              book.name,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: inBook ? FontWeight.w700 : FontWeight.w500,
+                color: inBook ? _brand : metaGrey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

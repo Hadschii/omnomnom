@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
 
@@ -25,12 +28,62 @@ Color subtleFill(BuildContext c) =>
 Color hairline(BuildContext c) =>
     _isDark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F4);
 
-/// The per-recipe accent colour.
-///
-/// PLACEHOLDER: the design samples this from the recipe photo. Palette
-/// extraction isn't wired yet, so we return the brand orange for every recipe.
-/// Swap this single function for the extracted colour later.
-Color accentForRecipe(Recipe recipe) => const Color(0xFFF69021);
+const _brandOrange = Color(0xFFF69021);
+
+/// Returns the accent colour for a recipe. Uses the pre-extracted [Recipe.accentColor]
+/// when available; falls back to brand orange for recipes without a photo or
+/// that predate extraction.
+Color accentForRecipe(Recipe recipe) {
+  final c = recipe.accentColor;
+  return c != null ? Color(c) : _brandOrange;
+}
+
+/// Extracts the most vibrant colour from an image file by decoding a 40×40
+/// thumbnail and picking the pixel with the highest saturation at a
+/// reasonable lightness. Returns null on error or if no photo exists.
+Future<int?> extractAccentColorFromPath(String? imagePath) async {
+  if (imagePath == null) return null;
+  try {
+    final bytes = await File(imagePath).readAsBytes();
+    final codec = await ui.instantiateImageCodec(
+      Uint8List.fromList(bytes),
+      targetWidth: 40,
+      targetHeight: 40,
+    );
+    final frame = await codec.getNextFrame();
+    final byteData =
+        await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    frame.image.dispose();
+    if (byteData == null) return null;
+
+    final buf = byteData.buffer.asUint8List();
+    var bestScore = 0.0;
+    var bestArgb = _brandOrange.toARGB32();
+
+    for (var i = 0; i < buf.length; i += 4) {
+      final r = buf[i] / 255;
+      final g = buf[i + 1] / 255;
+      final b = buf[i + 2] / 255;
+      final max = [r, g, b].reduce((a, b) => a > b ? a : b);
+      final min = [r, g, b].reduce((a, b) => a < b ? a : b);
+      final l = (max + min) / 2;
+      final s = (max == min)
+          ? 0.0
+          : (l > 0.5
+              ? (max - min) / (2 - max - min)
+              : (max - min) / (max + min));
+      // Reward saturation; penalise extremes of lightness (very dark or washed out).
+      final score = s * (1 - (l - 0.45).abs() * 2).clamp(0.0, 1.0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestArgb = Color.fromARGB(255, buf[i], buf[i + 1], buf[i + 2]).toARGB32();
+      }
+    }
+    return bestArgb;
+  } catch (_) {
+    return null;
+  }
+}
 
 /// Deterministic colour for a tag name (8-colour palette).
 /// Returns a [Color]; use `.toARGB32()` to store in [Tag.color].
