@@ -58,7 +58,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         return Scaffold(
           body: CustomScrollView(
             slivers: [
-              _navBar(context, recipe, accent),
+              _hero(context, recipe, accent),
               SliverToBoxAdapter(child: _sheet(context, recipe, accent)),
             ],
           ),
@@ -67,12 +67,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // ---- Nav bar ------------------------------------------------------------
+  // ---- Hero ---------------------------------------------------------------
 
-  Widget _navBar(BuildContext context, Recipe recipe, Color accent) {
+  Widget _hero(BuildContext context, Recipe recipe, Color accent) {
     final surface = Theme.of(context).colorScheme.surface;
     return SliverAppBar(
+      expandedHeight: 320,
       pinned: true,
+      stretch: true,
       automaticallyImplyLeading: false,
       backgroundColor: surface,
       elevation: 0,
@@ -94,33 +96,62 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         _circleButton(Icons.more_horiz, () => _showMore(context, recipe)),
         const SizedBox(width: 8),
       ],
-    );
-  }
-
-  Widget _inlinePhoto(Recipe recipe, Color accent) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: AspectRatio(
-          aspectRatio: 4 / 3,
-          child: recipe.imagePath != null
-              ? Image.file(
-                  File(recipe.imagePath!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _photoPlaceholder(accent),
-                )
-              : _photoPlaceholder(accent),
-        ),
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [StretchMode.zoomBackground],
+        background: _heroPhoto(recipe, accent),
       ),
     );
   }
 
-  Widget _photoPlaceholder(Color accent) => Container(
-        color: accent.withValues(alpha: 0.15),
-        child: Icon(Icons.restaurant_menu,
-            size: 64, color: accent.withValues(alpha: 0.4)),
-      );
+  Widget _heroPhoto(Recipe recipe, Color accent) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (recipe.imagePath != null)
+          Image.file(
+            File(recipe.imagePath!),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: accent),
+          )
+        else
+          Container(
+            color: accent,
+            child: Icon(
+              Icons.restaurant_menu,
+              size: 64,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+        // Top gradient so nav buttons stay legible over the photo.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.center,
+              colors: [Color(0x55000000), Color(0x00000000)],
+            ),
+          ),
+        ),
+        // Bottom gradient so photo blends smoothly into the card below.
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Theme.of(context).colorScheme.surface,
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _circleButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
@@ -130,10 +161,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         height: 36,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.07),
+          color: Colors.black.withValues(alpha: 0.32),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: const Color(0xFF1C1C1E), size: 18),
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
@@ -142,39 +173,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Widget _sheet(BuildContext context, Recipe recipe, Color accent) {
     final surface = Theme.of(context).colorScheme.surface;
-    return Container(
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _tags(context, recipe, accent),
-          const SizedBox(height: 10),
-          Text(
-            recipe.title,
-            style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              height: 1.06,
+    return Transform.translate(
+      offset: const Offset(0, -28),
+      child: Container(
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _tags(context, recipe, accent),
+            const SizedBox(height: 10),
+            Text(
+              recipe.title,
+              style: const TextStyle(
+                fontSize: 27,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                height: 1.06,
+              ),
             ),
-          ),
-          const SizedBox(height: 11),
-          _stats(recipe, accent),
-          const SizedBox(height: 15),
-          _startCooking(context, accent),
-          const SizedBox(height: 20),
-          _inlinePhoto(recipe, accent),
-          _segmented(accent),
-          const SizedBox(height: 14),
-          if (_tab == 0)
-            _ingredients(context, recipe, accent)
-          else
-            _steps(context, recipe, accent),
-        ],
+            const SizedBox(height: 11),
+            _stats(recipe, accent),
+            const SizedBox(height: 15),
+            _startCooking(context, accent),
+            const SizedBox(height: 16),
+            _segmented(accent),
+            const SizedBox(height: 14),
+            if (_tab == 0)
+              _ingredients(context, recipe, accent)
+            else
+              _steps(context, recipe, accent),
+          ],
+        ),
       ),
     );
   }
