@@ -180,7 +180,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           color: surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
+        padding: const EdgeInsets.fromLTRB(22, 36, 22, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
