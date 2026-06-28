@@ -509,13 +509,19 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
   // ---- Tags ---------------------------------------------------------------
 
   Widget _tagsSection() {
+    final tagState = context.read<TagBloc>().state;
+    final tagOrder = tagState is TagLoaded ? tagState.tagOrder : <String>[];
+    final sortedLabels = [
+      ...tagOrder.where(_labels.contains),
+      ..._labels.where((l) => !tagOrder.contains(l)),
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          for (final label in _labels) _tagChip(label),
+          for (final label in sortedLabels) _tagChip(label),
           GestureDetector(
             onTap: _showTagPicker,
             child: Container(
