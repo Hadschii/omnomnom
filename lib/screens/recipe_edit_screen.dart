@@ -581,7 +581,13 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
 
   Future<void> _showTagPicker() async {
     final tagState = context.read<TagBloc>().state;
-    final allTags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+    final rawTags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+    final tagOrder = tagState is TagLoaded ? tagState.tagOrder : <String>[];
+    final byName = {for (final t in rawTags) t.name: t};
+    final allTags = [
+      ...tagOrder.map((n) => byName[n]).whereType<Tag>(),
+      ...rawTags.where((t) => !tagOrder.contains(t.name)),
+    ];
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

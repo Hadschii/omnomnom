@@ -222,9 +222,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Widget _tags(BuildContext context, Recipe recipe, Color accent) {
-    final labels = recipe.labels;
-    final shown = labels.take(3).toList();
-    final overflow = labels.length - shown.length;
+    final tagOrder = switch (context.read<TagBloc>().state) {
+      TagLoaded(:final tagOrder) => tagOrder,
+      _ => <String>[],
+    };
+    final allLabels = [
+      ...tagOrder.where(recipe.labels.contains),
+      ...recipe.labels.where((l) => !tagOrder.contains(l)),
+    ];
+    final shown = allLabels.take(3).toList();
+    final overflow = allLabels.length - shown.length;
     Widget pill(String text, {bool muted = false}) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           decoration: BoxDecoration(
@@ -613,10 +620,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   // ---- Tag picker ---------------------------------------------------------
 
   void _showTagPicker(BuildContext context, Recipe recipe, Color accent) {
-    final allTags = switch (context.read<TagBloc>().state) {
-      TagLoaded(:final tags) => tags,
-      _ => <Tag>[],
-    };
+    final tagState = context.read<TagBloc>().state;
+    final rawTags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+    final tagOrder = tagState is TagLoaded ? tagState.tagOrder : <String>[];
+    final byName = {for (final t in rawTags) t.name: t};
+    final allTags = [
+      ...tagOrder.map((n) => byName[n]).whereType<Tag>(),
+      ...rawTags.where((t) => !tagOrder.contains(t.name)),
+    ];
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
