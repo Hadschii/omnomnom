@@ -42,12 +42,13 @@ class TagsScreen extends StatelessWidget {
       body: BlocBuilder<TagBloc, TagState>(
         builder: (context, tagState) {
           final tags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+          final tagOrder = tagState is TagLoaded ? tagState.tagOrder : <String>[];
           return BlocBuilder<RecipeBloc, RecipeState>(
             builder: (context, recipeState) {
               final recipes = recipeState is RecipeLoaded
                   ? recipeState.recipes
                   : <Recipe>[];
-              final entries = _merge(tags, recipes);
+              final entries = _merge(tags, recipes, tagOrder);
               return ListView(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 40),
                 children: [
@@ -56,7 +57,6 @@ class TagsScreen extends StatelessWidget {
                     child: Text('${entries.length} tags · used to filter recipes',
                         style: const TextStyle(fontSize: 13, color: metaGrey)),
                   ),
-                  // add row
                   _AddRow(label: 'New tag…', onTap: () => _addTag(context, tags)),
                   const SizedBox(height: 20),
                   if (entries.isEmpty)
@@ -65,15 +65,36 @@ class TagsScreen extends StatelessWidget {
                       child: Text('No tags yet', style: TextStyle(color: metaGrey)),
                     )
                   else
-                    _Card(
-                      children: [
-                        for (final e in entries)
-                          _TagRow(
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cardColor(context),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: ReorderableListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: entries.length,
+                        onReorder: (oldIndex, newIndex) {
+                          if (newIndex > oldIndex) newIndex--;
+                          final reordered = [...entries];
+                          final moved = reordered.removeAt(oldIndex);
+                          reordered.insert(newIndex, moved);
+                          context.read<TagBloc>().add(
+                              ReorderTags(reordered.map((e) => e.name).toList()));
+                        },
+                        itemBuilder: (context, i) {
+                          final e = entries[i];
+                          return _TagRow(
+                            key: ValueKey(e.name),
                             entry: e,
+                            index: i,
+                            isLast: i == entries.length - 1,
                             onRemove: () => _deleteTag(context, e, recipes),
                             onRename: () => _renameTag(context, e, recipes),
-                          ),
-                      ],
+                          );
+                        },
+                      ),
                     ),
                 ],
               );
@@ -84,7 +105,7 @@ class TagsScreen extends StatelessWidget {
     );
   }
 
-  List<_TagEntry> _merge(List<Tag> tags, List<Recipe> recipes) {
+  List<_TagEntry> _merge(List<Tag> tags, List<Recipe> recipes, List<String> tagOrder) {
     final counts = <String, int>{};
     for (final r in recipes) {
       for (final l in r.labels) {
@@ -92,9 +113,14 @@ class TagsScreen extends StatelessWidget {
       }
     }
     final byName = {for (final t in tags) t.name: t};
-    final names = <String>{...byName.keys, ...counts.keys}.toList()..sort();
+    final allNames = <String>{...byName.keys, ...counts.keys};
+    final unordered = allNames.where((n) => !tagOrder.contains(n)).toList()..sort();
+    final ordered = [
+      ...tagOrder.where(allNames.contains),
+      ...unordered,
+    ];
     return [
-      for (final n in names)
+      for (final n in ordered)
         _TagEntry(n, byName[n]?.color ?? tagColorFor(n).toARGB32(), counts[n] ?? 0,
             byName[n]),
     ];
@@ -113,7 +139,6 @@ class TagsScreen extends StatelessWidget {
 
   void _deleteTag(BuildContext context, _TagEntry e, List<Recipe> recipes) {
     if (e.tag != null) context.read<TagBloc>().add(DeleteTag(e.tag!.id));
-    // strip the label from every recipe that carries it
     for (final r in recipes) {
       if (r.labels.contains(e.name)) {
         final next = [...r.labels]..remove(e.name);
@@ -171,28 +196,6 @@ class TagsScreen extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  final List<Widget> children;
-  const _Card({required this.children});
-  @override
-  Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (var i = 0; i < children.length; i++) {
-      rows.add(children[i]);
-      if (i != children.length - 1) {
-        rows.add(Divider(
-            height: 1, thickness: 1, indent: 14, color: hairline(context)));
-      }
-    }
-    return Container(
-      decoration: BoxDecoration(
-          color: cardColor(context), borderRadius: BorderRadius.circular(15)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: rows),
-    );
-  }
-}
-
 class _AddRow extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -232,47 +235,68 @@ class _AddRow extends StatelessWidget {
 
 class _TagRow extends StatelessWidget {
   final _TagEntry entry;
+  final int index;
+  final bool isLast;
   final VoidCallback onRemove;
   final VoidCallback onRename;
-  const _TagRow(
-      {required this.entry, required this.onRemove, required this.onRename});
+  const _TagRow({
+    super.key,
+    required this.entry,
+    required this.index,
+    required this.isLast,
+    required this.onRemove,
+    required this.onRename,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onRename,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFFF3B30), shape: BoxShape.circle),
-                child: const Icon(Icons.remove, color: Colors.white, size: 15),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onRename,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: onRemove,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const BoxDecoration(
+                        color: Color(0xFFFF3B30), shape: BoxShape.circle),
+                    child: const Icon(Icons.remove, color: Colors.white, size: 15),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                      color: Color(entry.color), shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(entry.name,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w500)),
+                ),
+                Text('${entry.count}',
+                    style: const TextStyle(fontSize: 14, color: Color(0xFFA0A0A5))),
+                const SizedBox(width: 8),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Icon(Icons.drag_handle,
+                      size: 20, color: Color(0xFFC7C7CC)),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Container(
-              width: 11,
-              height: 11,
-              decoration:
-                  BoxDecoration(color: Color(entry.color), shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(entry.name,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w500)),
-            ),
-            Text('${entry.count}',
-                style: const TextStyle(fontSize: 14, color: Color(0xFFA0A0A5))),
-          ],
+          ),
         ),
-      ),
+        if (!isLast)
+          Divider(height: 1, thickness: 1, indent: 14, color: hairline(context)),
+      ],
     );
   }
 }

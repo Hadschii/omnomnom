@@ -13,6 +13,7 @@ class BookBloc extends Bloc<BookEvent, BookState> {
     on<AddBook>(_onAddBook);
     on<UpdateBook>(_onUpdateBook);
     on<DeleteBook>(_onDeleteBook);
+    on<ReorderBooks>(_onReorderBooks);
   }
 
   void _onLoadBooks(LoadBooks event, Emitter<BookState> emit) {
@@ -48,6 +49,15 @@ class BookBloc extends Bloc<BookEvent, BookState> {
       add(LoadBooks());
     } catch (e) {
       emit(BookError('Failed to delete book: $e'));
+    }
+  }
+
+  Future<void> _onReorderBooks(ReorderBooks event, Emitter<BookState> emit) async {
+    try {
+      await _bookRepository.saveBookOrder(event.orderedIds);
+      add(LoadBooks());
+    } catch (e) {
+      emit(BookError('Failed to reorder books: $e'));
     }
   }
 }

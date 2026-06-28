@@ -30,3 +30,10 @@ class DeleteTag extends TagEvent {
   @override
   List<Object> get props => [id];
 }
+
+class ReorderTags extends TagEvent {
+  final List<String> orderedNames;
+  const ReorderTags(this.orderedNames);
+  @override
+  List<Object> get props => [orderedNames];
+}

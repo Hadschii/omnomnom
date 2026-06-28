@@ -36,3 +36,12 @@ class DeleteBook extends BookEvent {
   @override
   List<Object> get props => [id];
 }
+
+class ReorderBooks extends BookEvent {
+  final List<String> orderedIds;
+
+  const ReorderBooks(this.orderedIds);
+
+  @override
+  List<Object> get props => [orderedIds];
+}

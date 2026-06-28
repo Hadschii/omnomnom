@@ -14,9 +14,10 @@ class TagLoading extends TagState {}
 
 class TagLoaded extends TagState {
   final List<Tag> tags;
-  const TagLoaded(this.tags);
+  final List<String> tagOrder;
+  const TagLoaded(this.tags, {this.tagOrder = const []});
   @override
-  List<Object> get props => [tags];
+  List<Object> get props => [tags, tagOrder];
 }
 
 class TagError extends TagState {

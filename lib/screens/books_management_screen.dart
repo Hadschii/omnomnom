@@ -89,16 +89,39 @@ class BooksManagementScreen extends StatelessWidget {
                           Text('No books yet', style: TextStyle(color: metaGrey)),
                     )
                   else
-                    _Card(children: [
-                      for (final b in books)
-                        _BookRow(
-                          book: b,
-                          count: recipesInBook(recipes, b.id).length,
-                          coverPath: _cover(recipes, b),
-                          onRemove: () => _delete(context, b, recipes),
-                          onRename: () => _rename(context, b),
-                        ),
-                    ]),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cardColor(context),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: ReorderableListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: books.length,
+                        onReorder: (oldIndex, newIndex) {
+                          if (newIndex > oldIndex) newIndex--;
+                          final reordered = [...books];
+                          final moved = reordered.removeAt(oldIndex);
+                          reordered.insert(newIndex, moved);
+                          context.read<BookBloc>().add(
+                              ReorderBooks(reordered.map((b) => b.id).toList()));
+                        },
+                        itemBuilder: (context, i) {
+                          final b = books[i];
+                          return _BookRow(
+                            key: ValueKey(b.id),
+                            book: b,
+                            index: i,
+                            isLast: i == books.length - 1,
+                            count: recipesInBook(recipes, b.id).length,
+                            coverPath: _cover(recipes, b),
+                            onRemove: () => _delete(context, b, recipes),
+                            onRename: () => _rename(context, b),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               );
             },
@@ -168,37 +191,20 @@ class BooksManagementScreen extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  final List<Widget> children;
-  const _Card({required this.children});
-  @override
-  Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (var i = 0; i < children.length; i++) {
-      rows.add(children[i]);
-      if (i != children.length - 1) {
-        rows.add(Divider(
-            height: 1, thickness: 1, indent: 14, color: hairline(context)));
-      }
-    }
-    return Container(
-      decoration: BoxDecoration(
-          color: cardColor(context), borderRadius: BorderRadius.circular(15)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: rows),
-    );
-  }
-}
-
 class _BookRow extends StatelessWidget {
   final RecipeBook book;
+  final int index;
+  final bool isLast;
   final int count;
   final String? coverPath;
   final VoidCallback onRemove;
   final VoidCallback onRename;
 
   const _BookRow({
+    super.key,
     required this.book,
+    required this.index,
+    required this.isLast,
     required this.count,
     required this.coverPath,
     required this.onRemove,
@@ -207,52 +213,64 @@ class _BookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onRename,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: onRemove,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFFF3B30), shape: BoxShape.circle),
-                child: const Icon(Icons.remove, color: Colors.white, size: 15),
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onRename,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: onRemove,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const BoxDecoration(
+                        color: Color(0xFFFF3B30), shape: BoxShape.circle),
+                    child: const Icon(Icons.remove, color: Colors.white, size: 15),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: coverPath != null
+                        ? Image.file(File(coverPath!),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                ColoredBox(color: groupColor(book.name)))
+                        : ColoredBox(color: groupColor(book.name)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(book.name,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                      Text('$count recipes',
+                          style: const TextStyle(fontSize: 12, color: metaGrey)),
+                    ],
+                  ),
+                ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Icon(Icons.drag_handle,
+                      size: 20, color: Color(0xFFC7C7CC)),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(9),
-              child: SizedBox(
-                width: 38,
-                height: 38,
-                child: coverPath != null
-                    ? Image.file(File(coverPath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            ColoredBox(color: groupColor(book.name)))
-                    : ColoredBox(color: groupColor(book.name)),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(book.name,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text('$count recipes',
-                      style: const TextStyle(fontSize: 12, color: metaGrey)),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        if (!isLast)
+          Divider(height: 1, thickness: 1, indent: 14, color: hairline(context)),
+      ],
     );
   }
 }
