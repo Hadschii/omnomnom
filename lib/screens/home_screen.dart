@@ -53,7 +53,6 @@ class RecipeList extends StatefulWidget {
 
 class _RecipeListState extends State<RecipeList> {
   String _query = '';
-  final _selectedTags = <String>{};
   final _searchCtrl = TextEditingController();
 
   @override
@@ -63,22 +62,14 @@ class _RecipeListState extends State<RecipeList> {
   }
 
   List<Recipe> _filter(List<Recipe> all) {
-    var result = all;
-    if (_query.isNotEmpty) {
-      final q = _query.toLowerCase();
-      result = result
-          .where((r) =>
-              r.title.toLowerCase().contains(q) ||
-              r.labels.any((l) => l.toLowerCase().contains(q)) ||
-              r.ingredients.any((i) => i.name.toLowerCase().contains(q)))
-          .toList();
-    }
-    if (_selectedTags.isNotEmpty) {
-      result = result
-          .where((r) => _selectedTags.every((t) => r.labels.contains(t)))
-          .toList();
-    }
-    return result;
+    if (_query.isEmpty) return all;
+    final q = _query.toLowerCase();
+    return all
+        .where((r) =>
+            r.title.toLowerCase().contains(q) ||
+            r.labels.any((l) => l.toLowerCase().contains(q)) ||
+            r.ingredients.any((i) => i.name.toLowerCase().contains(q)))
+        .toList();
   }
 
   Widget _searchBar() {
@@ -121,33 +112,6 @@ class _RecipeListState extends State<RecipeList> {
     );
   }
 
-  Widget _tagChips(List<String> allTags) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final tag in allTags) ...[
-              _TagFilterChip(
-                name: tag,
-                selected: _selectedTags.contains(tag),
-                onTap: () => setState(() {
-                  if (_selectedTags.contains(tag)) {
-                    _selectedTags.remove(tag);
-                  } else {
-                    _selectedTags.add(tag);
-                  }
-                }),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final bookState = context.watch<BookBloc>().state;
@@ -169,23 +133,17 @@ class _RecipeListState extends State<RecipeList> {
           }
           final allRecipes = state.recipes;
           final filtered = _filter(allRecipes);
-          final allTags =
-              ({for (final r in allRecipes) ...r.labels}).toList()..sort();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _searchBar(),
-              if (allTags.isNotEmpty) _tagChips(allTags),
               Expanded(
                 child: filtered.isEmpty
                     ? _NoMatchState(
                         onClear: () {
                           _searchCtrl.clear();
-                          setState(() {
-                            _query = '';
-                            _selectedTags.clear();
-                          });
+                          setState(() => _query = '');
                         },
                       )
                     : ListView.separated(
@@ -227,56 +185,6 @@ class _RecipeListState extends State<RecipeList> {
         }
         return const SizedBox();
       },
-    );
-  }
-}
-
-/// Deterministic per-tag color dot, no border, for the filter strip.
-class _TagFilterChip extends StatelessWidget {
-  final String name;
-  final bool selected;
-  final VoidCallback onTap;
-  const _TagFilterChip(
-      {required this.name, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const brand = Color(0xFFF69021);
-    final color = tagColorFor(name);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.12) : subtleFill(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? brand : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration:
-                  BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? brand : metaGrey,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

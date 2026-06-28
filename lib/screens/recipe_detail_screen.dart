@@ -129,6 +129,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
           ),
         ),
+        // Fade at the bottom into the sheet below. Darkest in the strip that
+        // stays visible above the card's overlap, fading up over the lower
+        // third of the image.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment(0, 0.35),
+              colors: [Color(0xB3000000), Color(0x00000000)],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -193,45 +205,32 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Widget _tags(BuildContext context, Recipe recipe, Color accent) {
+    final labels = recipe.labels;
+    final shown = labels.take(3).toList();
+    final overflow = labels.length - shown.length;
+    Widget pill(String text, {bool muted = false}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: muted ? 0.10 : 0.18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: accent.withValues(alpha: muted ? 0.20 : 0.35), width: 1),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: accent.withValues(alpha: muted ? 0.65 : 1.0),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
     return Wrap(
       spacing: 7,
       runSpacing: 7,
       children: [
-        for (final label in recipe.labels)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        // PLACEHOLDER: tag editing lives in the recipe editor (Step 6).
-        GestureDetector(
-          onTap: () => _placeholder(context, 'Add tag'),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: accent.withValues(alpha: 0.45), width: 1.5),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
-              '+ Tag',
-              style: TextStyle(
-                color: accent,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
+        for (final label in shown) pill(label),
+        if (overflow > 0) pill('+$overflow', muted: true),
       ],
     );
   }
