@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -66,8 +67,7 @@ class BooksScreen extends StatelessWidget {
                   final members = recipesInBook(recipes, book.id);
                   return _BookCover(
                     book: book,
-                    recipeCount: members.length,
-                    coverPath: _coverFor(book, members),
+                    members: members,
                     onTap: () => context.push('/books/${book.id}'),
                   );
                 },
@@ -79,13 +79,6 @@ class BooksScreen extends StatelessWidget {
     );
   }
 
-  String? _coverFor(RecipeBook book, List<Recipe> members) {
-    if (book.coverImagePath != null) return book.coverImagePath;
-    for (final r in members) {
-      if (r.imagePath != null) return r.imagePath;
-    }
-    return null;
-  }
 }
 
 /// Prompts for a name and creates a new (empty) book.
@@ -121,19 +114,21 @@ Future<void> createBook(BuildContext context) async {
 
 class _BookCover extends StatelessWidget {
   final RecipeBook book;
-  final int recipeCount;
-  final String? coverPath;
+  final List<Recipe> members;
   final VoidCallback onTap;
 
   const _BookCover({
     required this.book,
-    required this.recipeCount,
-    required this.coverPath,
+    required this.members,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final photos = [
+      for (final r in members) if (r.imagePath != null) r.imagePath!,
+    ]..shuffle(Random(book.id.hashCode));
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -145,21 +140,33 @@ class _BookCover extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (coverPath != null)
-                    Image.file(File(coverPath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _gradient())
-                  else
-                    _gradient(),
+                  _BookMosaic(photos: photos, bookName: book.name),
+                  // Diagonal fade: bright top-left → dark bottom-right.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0x00000000),
+                          Color(0x26000000),
+                          Color(0x73000000),
+                        ],
+                        stops: [0.0, 0.55, 1.0],
+                      ),
+                    ),
+                  ),
+                  // Bottom darkening so the title stays readable.
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.bottomCenter,
                         end: Alignment.center,
-                        colors: [Color(0xB8000000), Color(0x00000000)],
+                        colors: [Color(0xCC000000), Color(0x00000000)],
                       ),
                     ),
                   ),
+                  // Spine accent.
                   Positioned(
                     left: 8,
                     top: 8,
@@ -199,7 +206,7 @@ class _BookCover extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Row(
               children: [
-                Text('$recipeCount recipes',
+                Text('${members.length} recipes',
                     style: const TextStyle(fontSize: 12, color: metaGrey)),
                 const SizedBox(width: 6),
                 Container(
@@ -221,17 +228,53 @@ class _BookCover extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _gradient() {
-    final c = groupColor(book.name);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [c.withValues(alpha: 0.85), c],
+/// Tiled mosaic of recipe photos for the book cover card.
+/// Falls back to brand-tinted colour blocks when photos are absent.
+class _BookMosaic extends StatelessWidget {
+  final List<String> photos;
+  final String bookName;
+  const _BookMosaic({required this.photos, required this.bookName});
+
+  static const _fill = <Color>[
+    Color(0xFFE08A2C),
+    Color(0xFF6E5BD8),
+    Color(0xFF4E8A4F),
+    Color(0xFFC0492E),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const cols = 4;
+    const rows = 3;
+    const count = cols * rows;
+    if (photos.isEmpty) {
+      final c = groupColor(bookName);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [c.withValues(alpha: 0.85), c],
+          ),
         ),
-      ),
+      );
+    }
+    return GridView.count(
+      crossAxisCount: cols,
+      mainAxisSpacing: 1,
+      crossAxisSpacing: 1,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        for (var i = 0; i < count; i++)
+          Image.file(
+            File(photos[i % photos.length]),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                ColoredBox(color: _fill[i % _fill.length]),
+          ),
+      ],
     );
   }
 }
