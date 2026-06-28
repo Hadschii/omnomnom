@@ -230,26 +230,19 @@ class _BookCover extends StatelessWidget {
   }
 }
 
-/// Tiled mosaic for the book cover.
+/// Auto-density mosaic for the book cover.
 ///
-/// • 0 photos  → vibrant coloured-block grid (no photo needed).
-/// • 1 photo   → 2×2 Warhol-style pop-art: same image tinted 4 vivid colours.
-/// • 2+ photos → 4×3 grid, each photo shown once, leftover slots get coloured
-///               blocks so nothing ever repeats.
+/// Uses LayoutBuilder to fix the visual cell size at ~40px regardless of card
+/// width — so mobile and desktop both look dense, never boxy.
+/// Unique photos are scattered at random positions; all other cells are vivid
+/// coloured blocks. Nothing ever repeats.
 class _BookMosaic extends StatelessWidget {
   final List<String> photos;
   final String bookName;
   const _BookMosaic({required this.photos, required this.bookName});
 
-  // Pop-art tint colours for the single-photo case.
-  static const _warhol = [
-    Color(0xFFFF2D55), // pink-red
-    Color(0xFF5AC8FA), // sky blue
-    Color(0xFFFFCC00), // yellow
-    Color(0xFF4CD964), // green
-  ];
+  static const double _cellSize = 40.0;
 
-  // Vivid palette for placeholder / fill blocks.
   static const _palette = [
     Color(0xFFFF6B6B),
     Color(0xFF4ECDC4),
@@ -263,70 +256,43 @@ class _BookMosaic extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rng = Random(bookName.hashCode);
+    return LayoutBuilder(builder: (context, constraints) {
+      final cols = max(4, (constraints.maxWidth / _cellSize).floor());
+      final rows = max(3, (constraints.maxHeight / _cellSize).floor());
+      final count = cols * rows;
 
-    // ── No photos: vivid block grid ──────────────────────────────────────────
-    if (photos.isEmpty) {
-      final shuffled = [..._palette]..shuffle(rng);
-      return GridView.count(
-        crossAxisCount: 4,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (var i = 0; i < 12; i++)
-            ColoredBox(color: shuffled[i % shuffled.length]),
-        ],
-      );
-    }
+      final rng = Random(bookName.hashCode);
+      final palette = [..._palette]..shuffle(rng);
 
-    // ── One photo: 2×2 Warhol pop-art ───────────────────────────────────────
-    if (photos.length == 1) {
-      final tints = [..._warhol]..shuffle(rng);
-      return GridView.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (var i = 0; i < 4; i++)
-            ColorFiltered(
-              colorFilter:
-                  ColorFilter.mode(tints[i], BlendMode.color),
-              child: Image.file(
-                File(photos[0]),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => ColoredBox(color: tints[i]),
-              ),
-            ),
-        ],
-      );
-    }
-
-    // ── Multiple photos: each once, coloured fills for the rest ──────────────
-    const cols = 4, count = cols * 3;
-    final shuffledPalette = [..._palette]..shuffle(rng);
-    final cells = <Widget>[];
-    for (var i = 0; i < count; i++) {
-      if (i < photos.length) {
-        cells.add(Image.file(
-          File(photos[i]),
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => ColoredBox(
-              color: shuffledPalette[(i - photos.length) % shuffledPalette.length]),
-        ));
-      } else {
-        cells.add(ColoredBox(
-            color: shuffledPalette[(i - photos.length) % shuffledPalette.length]));
+      // Randomly scatter unique photos across the grid.
+      final positions = List.generate(count, (i) => i)..shuffle(rng);
+      final photoAt = <int, String>{};
+      for (var i = 0; i < min(photos.length, count); i++) {
+        photoAt[positions[i]] = photos[i];
       }
-    }
-    return GridView.count(
-      crossAxisCount: cols,
-      mainAxisSpacing: 1,
-      crossAxisSpacing: 1,
-      physics: const NeverScrollableScrollPhysics(),
-      children: cells,
-    );
+
+      var fillIdx = 0;
+      final cells = List.generate(count, (i) {
+        final path = photoAt[i];
+        if (path != null) {
+          return Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                ColoredBox(color: palette[fillIdx++ % palette.length]),
+          );
+        }
+        return ColoredBox(color: palette[fillIdx++ % palette.length]);
+      });
+
+      return GridView.count(
+        crossAxisCount: cols,
+        mainAxisSpacing: 1,
+        crossAxisSpacing: 1,
+        physics: const NeverScrollableScrollPhysics(),
+        children: cells,
+      );
+    });
   }
 }
 
