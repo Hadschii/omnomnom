@@ -230,51 +230,102 @@ class _BookCover extends StatelessWidget {
   }
 }
 
-/// Tiled mosaic of recipe photos for the book cover card.
-/// Falls back to brand-tinted colour blocks when photos are absent.
+/// Tiled mosaic for the book cover.
+///
+/// • 0 photos  → vibrant coloured-block grid (no photo needed).
+/// • 1 photo   → 2×2 Warhol-style pop-art: same image tinted 4 vivid colours.
+/// • 2+ photos → 4×3 grid, each photo shown once, leftover slots get coloured
+///               blocks so nothing ever repeats.
 class _BookMosaic extends StatelessWidget {
   final List<String> photos;
   final String bookName;
   const _BookMosaic({required this.photos, required this.bookName});
 
-  static const _fill = <Color>[
-    Color(0xFFE08A2C),
-    Color(0xFF6E5BD8),
-    Color(0xFF4E8A4F),
-    Color(0xFFC0492E),
+  // Pop-art tint colours for the single-photo case.
+  static const _warhol = [
+    Color(0xFFFF2D55), // pink-red
+    Color(0xFF5AC8FA), // sky blue
+    Color(0xFFFFCC00), // yellow
+    Color(0xFF4CD964), // green
+  ];
+
+  // Vivid palette for placeholder / fill blocks.
+  static const _palette = [
+    Color(0xFFFF6B6B),
+    Color(0xFF4ECDC4),
+    Color(0xFFFFE66D),
+    Color(0xFF95E1D3),
+    Color(0xFFF38181),
+    Color(0xFFC3A6FF),
+    Color(0xFFFF9F43),
+    Color(0xFF54A0FF),
   ];
 
   @override
   Widget build(BuildContext context) {
-    const cols = 4;
-    const rows = 3;
-    const count = cols * rows;
+    final rng = Random(bookName.hashCode);
+
+    // ── No photos: vivid block grid ──────────────────────────────────────────
     if (photos.isEmpty) {
-      final c = groupColor(bookName);
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [c.withValues(alpha: 0.85), c],
-          ),
-        ),
+      final shuffled = [..._palette]..shuffle(rng);
+      return GridView.count(
+        crossAxisCount: 4,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          for (var i = 0; i < 12; i++)
+            ColoredBox(color: shuffled[i % shuffled.length]),
+        ],
       );
+    }
+
+    // ── One photo: 2×2 Warhol pop-art ───────────────────────────────────────
+    if (photos.length == 1) {
+      final tints = [..._warhol]..shuffle(rng);
+      return GridView.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          for (var i = 0; i < 4; i++)
+            ColorFiltered(
+              colorFilter:
+                  ColorFilter.mode(tints[i], BlendMode.color),
+              child: Image.file(
+                File(photos[0]),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => ColoredBox(color: tints[i]),
+              ),
+            ),
+        ],
+      );
+    }
+
+    // ── Multiple photos: each once, coloured fills for the rest ──────────────
+    const cols = 4, count = cols * 3;
+    final shuffledPalette = [..._palette]..shuffle(rng);
+    final cells = <Widget>[];
+    for (var i = 0; i < count; i++) {
+      if (i < photos.length) {
+        cells.add(Image.file(
+          File(photos[i]),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => ColoredBox(
+              color: shuffledPalette[(i - photos.length) % shuffledPalette.length]),
+        ));
+      } else {
+        cells.add(ColoredBox(
+            color: shuffledPalette[(i - photos.length) % shuffledPalette.length]));
+      }
     }
     return GridView.count(
       crossAxisCount: cols,
       mainAxisSpacing: 1,
       crossAxisSpacing: 1,
       physics: const NeverScrollableScrollPhysics(),
-      children: [
-        for (var i = 0; i < count; i++)
-          Image.file(
-            File(photos[i % photos.length]),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
-                ColoredBox(color: _fill[i % _fill.length]),
-          ),
-      ],
+      children: cells,
     );
   }
 }
