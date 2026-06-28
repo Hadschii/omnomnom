@@ -3,9 +3,23 @@ import '../models/recipe_book.dart';
 
 class RecipeBookRepository {
   static const String _boxName = 'recipe_books';
+  static const String favoritesBookId = 'favorites';
 
   Future<void> init() async {
     await Hive.openBox<RecipeBook>(_boxName);
+    _seedDefaults();
+  }
+
+  void _seedDefaults() {
+    if (_box.containsKey(favoritesBookId)) return;
+    _box.put(
+      favoritesBookId,
+      RecipeBook(
+        id: favoritesBookId,
+        name: 'Favorites',
+        createdAt: DateTime(2020),
+      ),
+    );
   }
 
   Box<RecipeBook> get _box => Hive.box<RecipeBook>(_boxName);

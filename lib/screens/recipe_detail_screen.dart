@@ -11,6 +11,7 @@ import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
 import '../models/tag.dart';
+import '../repositories/recipe_book_repository.dart';
 import '../theme/recipe_accents.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -93,8 +94,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           : null,
       actions: [
         _circleButton(
-          Icons.favorite_border,
-          () => _placeholder(context, 'Favourites'),
+          (recipe.bookIds ?? []).contains(RecipeBookRepository.favoritesBookId)
+              ? Icons.favorite
+              : Icons.favorite_border,
+          () => _toggleFavorite(context, recipe),
         ),
         _circleButton(Icons.more_horiz, () => _showMore(context, recipe)),
         const SizedBox(width: 8),
@@ -631,6 +634,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   // ---- Actions ------------------------------------------------------------
+
+  void _toggleFavorite(BuildContext context, Recipe recipe) {
+    const favId = RecipeBookRepository.favoritesBookId;
+    final ids = List<String>.from(recipe.bookIds ?? []);
+    if (ids.contains(favId)) {
+      ids.remove(favId);
+    } else {
+      ids.add(favId);
+    }
+    context.read<RecipeBloc>().add(UpdateRecipe(recipe.copyWith(bookIds: ids)));
+  }
 
   void _back(BuildContext context) {
     if (widget.onBack != null) {
