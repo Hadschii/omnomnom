@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
+import '../blocs/tag/tag_bloc.dart';
+import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
+import '../models/tag.dart';
 import '../theme/recipe_accents.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -240,7 +243,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         for (final label in shown) pill(label),
         if (overflow > 0) pill('+$overflow', muted: true),
         GestureDetector(
-          onTap: () => _placeholder(context, 'Add tag'),
+          onTap: () => _showTagPicker(context, recipe, accent),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -601,6 +604,32 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  // ---- Tag picker ---------------------------------------------------------
+
+  void _showTagPicker(BuildContext context, Recipe recipe, Color accent) {
+    final allTags = switch (context.read<TagBloc>().state) {
+      TagLoaded(:final tags) => tags,
+      _ => <Tag>[],
+    };
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => _TagPickerSheet(
+        recipe: recipe,
+        allTags: allTags,
+        accent: accent,
+        onSave: (updatedLabels) {
+          context.read<RecipeBloc>().add(
+                UpdateRecipe(recipe.copyWith(labels: updatedLabels)),
+              );
+        },
+      ),
+    );
+  }
+
   // ---- Actions ------------------------------------------------------------
 
   void _back(BuildContext context) {
@@ -673,6 +702,163 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TagPickerSheet extends StatefulWidget {
+  final Recipe recipe;
+  final List<Tag> allTags;
+  final Color accent;
+  final ValueChanged<List<String>> onSave;
+
+  const _TagPickerSheet({
+    required this.recipe,
+    required this.allTags,
+    required this.accent,
+    required this.onSave,
+  });
+
+  @override
+  State<_TagPickerSheet> createState() => _TagPickerSheetState();
+}
+
+class _TagPickerSheetState extends State<_TagPickerSheet> {
+  late final Set<String> _selected;
+  final _ctrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set.from(widget.recipe.labels);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle(String label) =>
+      setState(() => _selected.contains(label) ? _selected.remove(label) : _selected.add(label));
+
+  void _addCustom() {
+    final v = _ctrl.text.trim();
+    if (v.isEmpty) return;
+    setState(() {
+      _selected.add(v);
+      _ctrl.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Merge registered tags + any custom labels already on the recipe.
+    final registeredNames = widget.allTags.map((t) => t.name).toSet();
+    final customLabels = widget.recipe.labels
+        .where((l) => !registeredNames.contains(l))
+        .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Tags',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      widget.onSave(_selected.toList());
+                      Navigator.pop(context);
+                    },
+                    child: Text('Done',
+                        style: TextStyle(
+                            color: widget.accent,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.allTags.isNotEmpty || customLabels.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final tag in widget.allTags)
+                      _chip(tag.name, Color(tag.color)),
+                    for (final label in customLabels)
+                      _chip(label, widget.accent),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      decoration: InputDecoration(
+                        hintText: 'Add custom tag…',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _addCustom(),
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: _addCustom,
+                    child: Text('Add',
+                        style: TextStyle(color: widget.accent)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color) {
+    final on = _selected.contains(label);
+    return GestureDetector(
+      onTap: () => _toggle(label),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: on ? color.withValues(alpha: 0.15) : Colors.transparent,
+          border: Border.all(
+              color: on ? color : const Color(0xFFD1D1D6), width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: on ? color : const Color(0xFF6A6A6E),
+          ),
+        ),
       ),
     );
   }
