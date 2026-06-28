@@ -8,9 +8,13 @@ import 'package:uuid/uuid.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
+import '../blocs/tag/tag_bloc.dart';
+import '../blocs/tag/tag_event.dart';
+import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
 import '../models/instruction.dart';
 import '../models/recipe.dart';
+import '../models/tag.dart';
 import '../services/ingredient_parser.dart';
 import '../theme/recipe_accents.dart';
 
@@ -223,6 +227,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
           _coverPhoto(),
           _titleField(),
           _metaRow(),
+          _tagsSection(),
           _switch(),
           const SizedBox(height: 6),
           if (_tab == 0) _ingredientsTab() else _stepsTab(),
@@ -287,10 +292,9 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
 
   Widget _coverPlaceholder() {
     return Container(
-      color: Colors.grey.shade300,
+      color: subtleFill(context),
       alignment: Alignment.center,
-      child: Icon(Icons.add_a_photo_outlined,
-          size: 36, color: Colors.grey.shade600),
+      child: const Icon(Icons.add_a_photo_outlined, size: 36, color: metaGrey),
     );
   }
 
@@ -310,7 +314,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
             style: const TextStyle(
                 fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
           ),
-          Container(height: 1, color: const Color(0xFFECECEF)),
+          Container(height: 1, color: hairline(context)),
         ],
       ),
     );
@@ -375,7 +379,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F8),
+        color: subtleFill(context),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -399,9 +403,9 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
         width: 24,
         height: 24,
         decoration: BoxDecoration(
-          color: filled ? _brand : Colors.white,
+          color: filled ? _brand : cardColor(context),
           shape: BoxShape.circle,
-          border: filled ? null : Border.all(color: const Color(0xFFE3E3E6)),
+          border: filled ? null : Border.all(color: hairline(context)),
         ),
         child: Icon(icon,
             size: 15, color: filled ? Colors.white : metaGrey),
@@ -462,7 +466,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F1F4),
+          color: subtleFill(context),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -491,9 +495,100 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? Colors.white : const Color(0xFF6A6A6E),
+                color: selected ? Colors.white : metaGrey,
               )),
         ),
+      ),
+    );
+  }
+
+  // ---- Tags ---------------------------------------------------------------
+
+  Widget _tagsSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final label in _labels) _tagChip(label),
+          GestureDetector(
+            onTap: _showTagPicker,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+              decoration: BoxDecoration(
+                color: subtleFill(context),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, size: 14, color: metaGrey),
+                  SizedBox(width: 5),
+                  Text('Add tag',
+                      style: TextStyle(fontSize: 13, color: metaGrey)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tagChip(String label) {
+    final tagState = context.read<TagBloc>().state;
+    final tags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+    final color = tags
+            .where((t) => t.name == label)
+            .map((t) => Color(t.color))
+            .firstOrNull ??
+        tagColorFor(label);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color)),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => setState(() => _labels.remove(label)),
+            child: Icon(Icons.close, size: 12, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showTagPicker() async {
+    final tagState = context.read<TagBloc>().state;
+    final allTags = tagState is TagLoaded ? tagState.tags : <Tag>[];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _TagPickerSheet(
+        allTags: allTags,
+        selected: List.of(_labels),
+        onDone: (labels) => setState(() {
+          _labels
+            ..clear()
+            ..addAll(labels);
+        }),
       ),
     );
   }
@@ -520,19 +615,19 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
+                color: subtleFill(context),
                 borderRadius: BorderRadius.circular(11),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.add, size: 16, color: Color(0xFF6A6A6E)),
+                  Icon(Icons.add, size: 16, color: metaGrey),
                   SizedBox(width: 8),
                   Text('New ingredient group',
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF6A6A6E))),
+                          color: metaGrey)),
                 ],
               ),
             ),
@@ -585,8 +680,8 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
       child: Container(
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF4F4F6))),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: hairline(context))),
         ),
         padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
@@ -615,10 +710,10 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
             ),
             if (ing.amount.isNotEmpty)
               Text(ing.amount,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF3A3A3C))),
+                      color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
       ),
@@ -774,7 +869,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
               padding: const EdgeInsets.symmetric(vertical: 13),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: const Color(0xFFF0D4B4), width: 1.5),
+                    color: _brand.withValues(alpha: 0.35), width: 1.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Row(
@@ -804,8 +899,8 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
         onTap: () => _editStep(step),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA),
-            border: Border.all(color: const Color(0xFFF0F0F2)),
+            color: cardColor(context),
+            border: Border.all(color: hairline(context)),
             borderRadius: BorderRadius.circular(16),
           ),
           padding: const EdgeInsets.all(13),
@@ -818,12 +913,13 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
                   Container(
                     width: 26,
                     height: 26,
-                    decoration: const BoxDecoration(
-                        color: Color(0xFF1C1C1E), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        shape: BoxShape.circle),
                     alignment: Alignment.center,
                     child: Text('${index + 1}',
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.surface,
                             fontSize: 13,
                             fontWeight: FontWeight.w700)),
                   ),
@@ -840,7 +936,7 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
                         height: 1.4,
                         color: step.description.isEmpty
                             ? metaGrey
-                            : const Color(0xFF3A3A3C),
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -861,13 +957,12 @@ class _RecipeEditScreenState extends State<RecipeEditScreen> {
                       height: 46,
                       decoration: BoxDecoration(
                         border: Border.all(
-                            color: const Color(0xFFD8D8DC),
+                            color: hairline(context),
                             width: 1.5,
                             style: BorderStyle.solid),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.add,
-                          size: 18, color: Color(0xFFB6B6BB)),
+                      child: const Icon(Icons.add, size: 18, color: metaGrey),
                     ),
                   ReorderableDragStartListener(
                     index: index,
@@ -1062,7 +1157,7 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7F7F8),
+                      color: subtleFill(context),
                       borderRadius: BorderRadius.circular(13),
                     ),
                     padding: const EdgeInsets.symmetric(
@@ -1122,7 +1217,7 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
   Widget _sectionLabel(String text) => Text(
         text,
         style: const TextStyle(
-            fontSize: 11, color: Color(0xFF9B9B9B), letterSpacing: 0.6),
+            fontSize: 11, color: metaGrey, letterSpacing: 0.6),
       );
 
   Widget _photoSlot() {
@@ -1169,7 +1264,7 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
 
   Widget _emptyPhoto() {
     return Container(
-      color: const Color(0xFFF1F1F4),
+      color: subtleFill(context),
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1188,7 +1283,7 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFECECEF)),
+            border: Border.all(color: hairline(context)),
             borderRadius: BorderRadius.circular(13),
           ),
           child: const Row(
@@ -1206,7 +1301,7 @@ class _StepEditorSheetState extends State<_StepEditorSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFECECEF)),
+        border: Border.all(color: hairline(context)),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
@@ -1296,7 +1391,7 @@ class _GroupChoiceChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
       decoration: BoxDecoration(
-        color: selected ? color.withValues(alpha: 0.12) : const Color(0xFFF1F1F4),
+        color: selected ? color.withValues(alpha: 0.12) : subtleFill(context),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
             color: selected ? color : Colors.transparent, width: 1.5),
@@ -1316,12 +1411,238 @@ class _GroupChoiceChip extends StatelessWidget {
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  color: selected ? color : const Color(0xFF6A6A6E))),
+                  color: selected ? color : metaGrey)),
           if (selected) ...[
             const SizedBox(width: 6),
             Icon(Icons.check, size: 12, color: color),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ---- Tag picker sheet -------------------------------------------------------
+
+class _TagPickerSheet extends StatefulWidget {
+  final List<Tag> allTags;
+  final List<String> selected;
+  final void Function(List<String>) onDone;
+
+  const _TagPickerSheet({
+    required this.allTags,
+    required this.selected,
+    required this.onDone,
+  });
+
+  @override
+  State<_TagPickerSheet> createState() => _TagPickerSheetState();
+}
+
+class _TagPickerSheetState extends State<_TagPickerSheet> {
+  late final List<String> _selected;
+  late final List<Tag> _localTags;
+  final _ctrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.of(widget.selected);
+    _localTags = List.of(widget.allTags);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _create() {
+    final name = _ctrl.text.trim();
+    if (name.isEmpty) return;
+    if (_localTags.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
+      // tag already exists — just select it
+      if (!_selected.contains(name)) setState(() => _selected.add(name));
+      _ctrl.clear();
+      return;
+    }
+    final tag = Tag(
+      id: const Uuid().v4(),
+      name: name,
+      color: tagColorFor(name).toARGB32(),
+    );
+    context.read<TagBloc>().add(AddTag(tag));
+    setState(() {
+      _localTags.add(tag);
+      _selected.add(name);
+    });
+    _ctrl.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
+        builder: (context, controller) => Column(
+          children: [
+            // header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel',
+                        style: TextStyle(color: metaGrey)),
+                  ),
+                  const Text('Tags',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                  TextButton(
+                    onPressed: () {
+                      widget.onDone(_selected);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Done',
+                        style: TextStyle(
+                            color: _brand, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            // new tag input
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: subtleFill(context),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      child: TextField(
+                        controller: _ctrl,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          hintText: 'New tag name…',
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        onSubmitted: (_) => _create(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: _create,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: _brand,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Text('Create',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // tag chips
+            Expanded(
+              child: _localTags.isEmpty
+                  ? const Center(
+                      child: Text('No tags yet — create one above.',
+                          style: TextStyle(color: metaGrey)))
+                  : ListView(
+                      controller: controller,
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final tag in _localTags)
+                              _TagChoiceChip(
+                                tag: tag,
+                                selected: _selected.contains(tag.name),
+                                onTap: () => setState(() {
+                                  if (_selected.contains(tag.name)) {
+                                    _selected.remove(tag.name);
+                                  } else {
+                                    _selected.add(tag.name);
+                                  }
+                                }),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TagChoiceChip extends StatelessWidget {
+  final Tag tag;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TagChoiceChip(
+      {required this.tag, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(tag.color);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : subtleFill(context),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+              color: selected ? color : Colors.transparent, width: 1.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: selected ? 1 : 0.5),
+                  shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(tag.name,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w600,
+                    color: selected ? color : metaGrey)),
+            if (selected) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.check, size: 12, color: color),
+            ],
+          ],
+        ),
       ),
     );
   }

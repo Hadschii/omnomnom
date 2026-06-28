@@ -14,18 +14,6 @@ import '../theme/recipe_accents.dart';
 
 const _brand = Color(0xFFF69021);
 
-const _tagPalette = <int>[
-  0xFFC0492E,
-  0xFF4E8A4F,
-  0xFF6E5BD8,
-  0xFFE08A2C,
-  0xFFB23A6B,
-  0xFF2D6E8E,
-  0xFFF69021,
-  0xFF34A0E0,
-];
-int _tagColorFor(String name) =>
-    _tagPalette[name.hashCode.abs() % _tagPalette.length];
 
 class _TagEntry {
   final String name;
@@ -107,7 +95,7 @@ class TagsScreen extends StatelessWidget {
     final names = <String>{...byName.keys, ...counts.keys}.toList()..sort();
     return [
       for (final n in names)
-        _TagEntry(n, byName[n]?.color ?? _tagColorFor(n), counts[n] ?? 0,
+        _TagEntry(n, byName[n]?.color ?? tagColorFor(n).toARGB32(), counts[n] ?? 0,
             byName[n]),
     ];
   }
@@ -119,7 +107,7 @@ class TagsScreen extends StatelessWidget {
     context.read<TagBloc>().add(AddTag(Tag(
           id: const Uuid().v4(),
           name: name,
-          color: _tagColorFor(name),
+          color: tagColorFor(name).toARGB32(),
         )));
   }
 

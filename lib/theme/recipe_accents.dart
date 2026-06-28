@@ -32,6 +32,15 @@ Color hairline(BuildContext c) =>
 /// Swap this single function for the extracted colour later.
 Color accentForRecipe(Recipe recipe) => const Color(0xFFF69021);
 
+/// Deterministic colour for a tag name (8-colour palette).
+/// Returns a [Color]; use `.toARGB32()` to store in [Tag.color].
+const _tagPalette = <int>[
+  0xFFC0492E, 0xFF4E8A4F, 0xFF6E5BD8, 0xFFE08A2C,
+  0xFFB23A6B, 0xFF2D6E8E, 0xFFF69021, 0xFF34A0E0,
+];
+Color tagColorFor(String name) =>
+    Color(_tagPalette[name.hashCode.abs() % _tagPalette.length]);
+
 /// Deterministic, distinct colours for ingredient groups (Sauce, Mains, …) so
 /// a group reads the same wherever it appears (detail, editor, cook).
 const _groupPalette = <Color>[

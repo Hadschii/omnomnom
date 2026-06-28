@@ -7,9 +7,8 @@ import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
 import '../models/recipe.dart';
+import '../theme/recipe_accents.dart';
 
-// Design tokens for the browser, taken from the iOS exploration.
-const _metaGrey = Color(0xFF8E8E93);
 const _dotGrey = Color(0xFFC7C7CC);
 
 class HomeScreen extends StatelessWidget {
@@ -17,19 +16,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Image.asset('assets/images/app_logo.png', height: 30),
         actions: [
           IconButton(
-            icon: Icon(Icons.search, color: primary),
-            tooltip: 'Search',
-            onPressed: () => _showSearchPlaceholder(context),
-          ),
-          IconButton(
-            icon: Icon(Icons.add, color: primary),
+            icon: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
             tooltip: 'New recipe',
             onPressed: () => context.go('/recipe/new'),
           ),
@@ -39,19 +32,9 @@ class HomeScreen extends StatelessWidget {
       body: const RecipeList(showLargeTitle: true),
     );
   }
-
-  void _showSearchPlaceholder(BuildContext context) {
-    // PLACEHOLDER: the design keeps search in the top bar, but the live
-    // filtering UI is built in a later step.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('Search — coming soon (PLACEHOLDER)')),
-      );
-  }
 }
 
-class RecipeList extends StatelessWidget {
+class RecipeList extends StatefulWidget {
   final Function(Recipe)? onRecipeSelected;
 
   /// When true, prepends the large "Recipes" title (used on the mobile home
@@ -63,6 +46,107 @@ class RecipeList extends StatelessWidget {
     this.onRecipeSelected,
     this.showLargeTitle = false,
   });
+
+  @override
+  State<RecipeList> createState() => _RecipeListState();
+}
+
+class _RecipeListState extends State<RecipeList> {
+  String _query = '';
+  final _selectedTags = <String>{};
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Recipe> _filter(List<Recipe> all) {
+    var result = all;
+    if (_query.isNotEmpty) {
+      final q = _query.toLowerCase();
+      result = result
+          .where((r) =>
+              r.title.toLowerCase().contains(q) ||
+              r.labels.any((l) => l.toLowerCase().contains(q)) ||
+              r.ingredients.any((i) => i.name.toLowerCase().contains(q)))
+          .toList();
+    }
+    if (_selectedTags.isNotEmpty) {
+      result = result
+          .where((r) => _selectedTags.every((t) => r.labels.contains(t)))
+          .toList();
+    }
+    return result;
+  }
+
+  Widget _searchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: subtleFill(context),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          children: [
+            const Icon(Icons.search, size: 18, color: metaGrey),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  hintText: 'Search recipes…',
+                  hintStyle: TextStyle(color: metaGrey, fontSize: 15),
+                ),
+                style: const TextStyle(fontSize: 15),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            if (_query.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _searchCtrl.clear();
+                  setState(() => _query = '');
+                },
+                child: const Icon(Icons.close, size: 18, color: metaGrey),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tagChips(List<String> allTags) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final tag in allTags) ...[
+              _TagFilterChip(
+                name: tag,
+                selected: _selectedTags.contains(tag),
+                onTap: () => setState(() {
+                  if (_selectedTags.contains(tag)) {
+                    _selectedTags.remove(tag);
+                  } else {
+                    _selectedTags.add(tag);
+                  }
+                }),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,41 +165,118 @@ class RecipeList extends StatelessWidget {
         }
         if (state is RecipeLoaded) {
           if (state.recipes.isEmpty) {
-            return _EmptyState(showLargeTitle: showLargeTitle);
+            return _EmptyState(showLargeTitle: widget.showLargeTitle);
           }
-          final headerCount = showLargeTitle ? 1 : 0;
-          return ListView.separated(
-            padding: EdgeInsets.fromLTRB(22, showLargeTitle ? 4 : 16, 22, 28),
-            itemCount: state.recipes.length + headerCount,
-            separatorBuilder: (_, __) => const SizedBox(height: 20),
-            itemBuilder: (context, index) {
-              if (showLargeTitle && index == 0) {
-                return const Text(
-                  'Recipes',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                );
-              }
-              final recipe = state.recipes[index - headerCount];
-              return _RecipeCard(
-                recipe: recipe,
-                bookNamesById: bookNamesById,
-                onTap: () {
-                  if (onRecipeSelected != null) {
-                    onRecipeSelected!(recipe);
-                  } else {
-                    context.go('/recipe/${recipe.id}');
-                  }
-                },
-              );
-            },
+          final allRecipes = state.recipes;
+          final filtered = _filter(allRecipes);
+          final allTags =
+              ({for (final r in allRecipes) ...r.labels}).toList()..sort();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _searchBar(),
+              if (allTags.isNotEmpty) _tagChips(allTags),
+              Expanded(
+                child: filtered.isEmpty
+                    ? _NoMatchState(
+                        onClear: () {
+                          _searchCtrl.clear();
+                          setState(() {
+                            _query = '';
+                            _selectedTags.clear();
+                          });
+                        },
+                      )
+                    : ListView.separated(
+                        padding: EdgeInsets.fromLTRB(
+                            22, widget.showLargeTitle ? 4 : 16, 22, 28),
+                        itemCount:
+                            filtered.length + (widget.showLargeTitle ? 1 : 0),
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 20),
+                        itemBuilder: (context, index) {
+                          if (widget.showLargeTitle && index == 0) {
+                            return const Text(
+                              'Recipes',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            );
+                          }
+                          final recipe = filtered[
+                              index - (widget.showLargeTitle ? 1 : 0)];
+                          return _RecipeCard(
+                            recipe: recipe,
+                            bookNamesById: bookNamesById,
+                            onTap: () {
+                              if (widget.onRecipeSelected != null) {
+                                widget.onRecipeSelected!(recipe);
+                              } else {
+                                context.go('/recipe/${recipe.id}');
+                              }
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         }
         return const SizedBox();
       },
+    );
+  }
+}
+
+/// Deterministic per-tag color dot, no border, for the filter strip.
+class _TagFilterChip extends StatelessWidget {
+  final String name;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TagFilterChip(
+      {required this.name, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const brand = Color(0xFFF69021);
+    final color = tagColorFor(name);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : subtleFill(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? brand : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration:
+                  BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight:
+                    selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? brand : metaGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -257,7 +418,7 @@ class _MetaRow extends StatelessWidget {
           parts[i],
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, color: _metaGrey),
+          style: const TextStyle(fontSize: 14, color: metaGrey),
         ),
       ));
     }
@@ -336,6 +497,33 @@ class _EmptyState extends StatelessWidget {
             onPressed: () => context.go('/recipe/new'),
             child: const Text('Create your first recipe'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoMatchState extends StatelessWidget {
+  final VoidCallback onClear;
+  const _NoMatchState({required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 56, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No matching recipes',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onClear, child: const Text('Clear search')),
         ],
       ),
     );
