@@ -20,7 +20,7 @@ import '../repositories/tag_repository.dart';
 import '../services/library_io_service.dart';
 import '../theme/recipe_accents.dart';
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

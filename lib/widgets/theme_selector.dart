@@ -11,33 +11,30 @@ class ThemeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildThemeOption(context, 'System Default', ThemeMode.system, state.themeMode),
-            _buildThemeOption(context, 'Light Mode', ThemeMode.light, state.themeMode),
-            _buildThemeOption(context, 'Dark Mode', ThemeMode.dark, state.themeMode),
-          ],
+        return RadioGroup<ThemeMode>(
+          groupValue: state.themeMode,
+          onChanged: (value) {
+            if (value != null) {
+              context.read<SettingsBloc>().add(UpdateThemeMode(value));
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildThemeOption(context, 'System Default', ThemeMode.system),
+              _buildThemeOption(context, 'Light Mode', ThemeMode.light),
+              _buildThemeOption(context, 'Dark Mode', ThemeMode.dark),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildThemeOption(
-    BuildContext context,
-    String title,
-    ThemeMode mode,
-    ThemeMode currentMode,
-  ) {
+  Widget _buildThemeOption(BuildContext context, String title, ThemeMode mode) {
     return RadioListTile<ThemeMode>(
       title: Text(title),
       value: mode,
-      groupValue: currentMode,
-      onChanged: (value) {
-        if (value != null) {
-          context.read<SettingsBloc>().add(UpdateThemeMode(value));
-        }
-      },
     );
   }
 }

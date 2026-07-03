@@ -6,7 +6,6 @@ import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_event.dart';
 import '../blocs/recipe/recipe_state.dart';
 import '../blocs/settings/settings_bloc.dart';
-import '../blocs/settings/settings_state.dart';
 import '../blocs/tag/tag_bloc.dart';
 import '../blocs/tag/tag_state.dart';
 import '../models/ingredient.dart';
@@ -15,6 +14,7 @@ import '../models/recipe.dart';
 import '../models/tag.dart';
 import '../repositories/recipe_book_repository.dart';
 import '../theme/recipe_accents.dart';
+import '../utils/order.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -226,10 +226,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       TagLoaded(:final tagOrder) => tagOrder,
       _ => <String>[],
     };
-    final allLabels = [
-      ...tagOrder.where(recipe.labels.contains),
-      ...recipe.labels.where((l) => !tagOrder.contains(l)),
-    ];
+    final allLabels = sortByStoredOrder(recipe.labels, tagOrder, (l) => l);
     final shown = allLabels.take(3).toList();
     final overflow = allLabels.length - shown.length;
     Widget pill(String text, {bool muted = false}) => Container(
@@ -623,11 +620,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final tagState = context.read<TagBloc>().state;
     final rawTags = tagState is TagLoaded ? tagState.tags : <Tag>[];
     final tagOrder = tagState is TagLoaded ? tagState.tagOrder : <String>[];
-    final byName = {for (final t in rawTags) t.name: t};
-    final allTags = [
-      ...tagOrder.map((n) => byName[n]).whereType<Tag>(),
-      ...rawTags.where((t) => !tagOrder.contains(t.name)),
-    ];
+    final allTags = sortByStoredOrder(rawTags, tagOrder, (t) => t.name);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -668,14 +661,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     } else {
       context.go('/');
     }
-  }
-
-  void _placeholder(BuildContext context, String what) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('$what — coming soon (PLACEHOLDER)')),
-      );
   }
 
   void _showMore(BuildContext context, Recipe recipe) {

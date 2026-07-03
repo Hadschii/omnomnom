@@ -7,7 +7,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
 import '../blocs/settings/settings_bloc.dart';
-import '../blocs/settings/settings_state.dart';
 import '../models/recipe.dart';
 import '../theme/recipe_accents.dart';
 

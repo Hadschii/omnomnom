@@ -13,7 +13,7 @@ import '../models/recipe_book.dart';
 import '../theme/recipe_accents.dart';
 import 'books_screen.dart' show recipesInBook;
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 class BookDetailScreen extends StatefulWidget {
   final String bookId;

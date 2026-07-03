@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
@@ -28,15 +27,17 @@ Color subtleFill(BuildContext c) =>
 Color hairline(BuildContext c) =>
     _isDark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F4);
 
-const _brandOrange = Color(0xFFF69021);
+/// The single OmNomNom brand colour. Import this instead of redeclaring a
+/// local `_brand`/`brandOrange` constant per screen.
+const brandOrange = Color(0xFFF69021);
 
 /// Returns the accent colour for a recipe.
 /// When [usePhotoAccent] is false (setting toggled off), always returns brand orange.
 /// Otherwise uses the pre-extracted [Recipe.accentColor], falling back to brand orange.
 Color accentForRecipe(Recipe recipe, {bool usePhotoAccent = true}) {
-  if (!usePhotoAccent) return _brandOrange;
+  if (!usePhotoAccent) return brandOrange;
   final c = recipe.accentColor;
-  return c != null ? Color(c) : _brandOrange;
+  return c != null ? Color(c) : brandOrange;
 }
 
 /// Extracts the most vibrant colour from an image file by decoding a 40×40
@@ -47,7 +48,7 @@ Future<int?> extractAccentColorFromPath(String? imagePath) async {
   try {
     final bytes = await File(imagePath).readAsBytes();
     final codec = await ui.instantiateImageCodec(
-      Uint8List.fromList(bytes),
+      bytes,
       targetWidth: 40,
       targetHeight: 40,
     );
@@ -59,7 +60,7 @@ Future<int?> extractAccentColorFromPath(String? imagePath) async {
 
     final buf = byteData.buffer.asUint8List();
     var bestScore = 0.0;
-    var bestArgb = _brandOrange.toARGB32();
+    var bestArgb = brandOrange.toARGB32();
 
     for (var i = 0; i < buf.length; i += 4) {
       final r = buf[i] / 255;

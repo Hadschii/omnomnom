@@ -11,8 +11,10 @@ import '../blocs/tag/tag_state.dart';
 import '../models/recipe.dart';
 import '../models/tag.dart';
 import '../theme/recipe_accents.dart';
+import '../utils/order.dart';
+import '../widgets/prompt_text.dart';
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 
 class _TagEntry {
@@ -113,12 +115,9 @@ class TagsScreen extends StatelessWidget {
       }
     }
     final byName = {for (final t in tags) t.name: t};
-    final allNames = <String>{...byName.keys, ...counts.keys};
-    final unordered = allNames.where((n) => !tagOrder.contains(n)).toList()..sort();
-    final ordered = [
-      ...tagOrder.where(allNames.contains),
-      ...unordered,
-    ];
+    final sortedNames = (<String>{...byName.keys, ...counts.keys}).toList()
+      ..sort();
+    final ordered = sortByStoredOrder(sortedNames, tagOrder, (n) => n);
     return [
       for (final n in ordered)
         _TagEntry(n, byName[n]?.color ?? tagColorFor(n).toARGB32(), counts[n] ?? 0,
@@ -127,8 +126,9 @@ class TagsScreen extends StatelessWidget {
   }
 
   Future<void> _addTag(BuildContext context, List<Tag> existing) async {
-    final name = await _prompt(context, 'New tag', 'e.g. Weeknight');
-    if (name == null || name.isEmpty || !context.mounted) return;
+    final name =
+        await promptText(context, title: 'New tag', hint: 'e.g. Weeknight');
+    if (name == null || !context.mounted) return;
     if (existing.any((t) => t.name.toLowerCase() == name.toLowerCase())) return;
     context.read<TagBloc>().add(AddTag(Tag(
           id: const Uuid().v4(),
@@ -149,8 +149,8 @@ class TagsScreen extends StatelessWidget {
 
   Future<void> _renameTag(
       BuildContext context, _TagEntry e, List<Recipe> recipes) async {
-    final name = await _prompt(context, 'Rename tag', e.name, initial: e.name);
-    if (name == null || name.isEmpty || name == e.name || !context.mounted) {
+    final name = await promptText(context, title: 'Rename tag', initial: e.name);
+    if (name == null || name == e.name || !context.mounted) {
       return;
     }
     if (e.tag != null) {
@@ -170,30 +170,6 @@ class TagsScreen extends StatelessWidget {
     }
   }
 
-  Future<String?> _prompt(BuildContext context, String title, String hint,
-      {String? initial}) async {
-    final ctrl = TextEditingController(text: initial);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hint),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: const Text('Save')),
-        ],
-      ),
-    );
-    return result?.trim();
-  }
 }
 
 class _AddRow extends StatelessWidget {

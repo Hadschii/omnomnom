@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -12,12 +13,28 @@ import '../blocs/recipe/recipe_state.dart';
 import '../models/recipe.dart';
 import '../models/recipe_book.dart';
 import '../theme/recipe_accents.dart';
+import '../widgets/prompt_text.dart';
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 /// Recipes that belong to [book] (membership is the source of truth on Recipe).
 List<Recipe> recipesInBook(List<Recipe> all, String bookId) =>
     all.where((r) => (r.bookIds ?? const []).contains(bookId)).toList();
+
+/// One-time index of recipes by book id. Building this once per recipe list
+/// and looking up per book (O(1) after the initial O(recipes) pass) avoids
+/// re-scanning every recipe for every book when rendering a books grid —
+/// [recipesInBook] itself is an O(recipes) scan, so calling it once per book
+/// in a list is O(books × recipes).
+Map<String, List<Recipe>> indexRecipesByBook(List<Recipe> all) {
+  final index = <String, List<Recipe>>{};
+  for (final r in all) {
+    for (final id in r.bookIds ?? const <String>[]) {
+      index.putIfAbsent(id, () => []).add(r);
+    }
+  }
+  return index;
+}
 
 class BooksScreen extends StatelessWidget {
   const BooksScreen({super.key});
@@ -49,6 +66,7 @@ class BooksScreen extends StatelessWidget {
             builder: (context, recipeState) {
               final recipes =
                   recipeState is RecipeLoaded ? recipeState.recipes : <Recipe>[];
+              final byBook = indexRecipesByBook(recipes);
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 gridDelegate:
@@ -64,8 +82,9 @@ class BooksScreen extends StatelessWidget {
                     return _NewBookTile(onTap: () => createBook(context));
                   }
                   final book = books[index];
-                  final members = recipesInBook(recipes, book.id);
+                  final members = byBook[book.id] ?? const <Recipe>[];
                   return _BookCover(
+                    key: ValueKey(book.id),
                     book: book,
                     members: members,
                     onTap: () => context.push('/books/${book.id}'),
@@ -83,54 +102,68 @@ class BooksScreen extends StatelessWidget {
 
 /// Prompts for a name and creates a new (empty) book.
 Future<void> createBook(BuildContext context) async {
-  final ctrl = TextEditingController();
-  final name = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('New book'),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        decoration: const InputDecoration(hintText: 'e.g. Family Recipes'),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: const Text('Create')),
-      ],
-    ),
+  final name = await promptText(
+    context,
+    title: 'New book',
+    hint: 'e.g. Family Recipes',
+    confirmLabel: 'Create',
   );
-  final trimmed = name?.trim();
-  if (trimmed == null || trimmed.isEmpty || !context.mounted) return;
+  if (name == null || !context.mounted) return;
   context.read<BookBloc>().add(AddBook(RecipeBook(
         id: const Uuid().v4(),
-        name: trimmed,
+        name: name,
         createdAt: DateTime.now(),
       )));
 }
 
-class _BookCover extends StatelessWidget {
+class _BookCover extends StatefulWidget {
   final RecipeBook book;
   final List<Recipe> members;
   final VoidCallback onTap;
 
   const _BookCover({
+    super.key,
     required this.book,
     required this.members,
     required this.onTap,
   });
 
   @override
+  State<_BookCover> createState() => _BookCoverState();
+}
+
+class _BookCoverState extends State<_BookCover> {
+  // Shuffled once and cached so an unrelated app-wide rebuild (e.g. another
+  // recipe being edited) doesn't reshuffle and re-decode every visible cover.
+  late List<String> _photos;
+
+  @override
+  void initState() {
+    super.initState();
+    _photos = _shuffled(widget.members);
+  }
+
+  @override
+  void didUpdateWidget(_BookCover oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(_imagePaths(oldWidget.members), _imagePaths(widget.members))) {
+      _photos = _shuffled(widget.members);
+    }
+  }
+
+  List<String> _imagePaths(List<Recipe> members) =>
+      [for (final r in members) if (r.imagePath != null) r.imagePath!];
+
+  List<String> _shuffled(List<Recipe> members) =>
+      _imagePaths(members)..shuffle(Random(widget.book.id.hashCode));
+
+  @override
   Widget build(BuildContext context) {
-    final photos = [
-      for (final r in members) if (r.imagePath != null) r.imagePath!,
-    ]..shuffle(Random(book.id.hashCode));
+    final book = widget.book;
+    final members = widget.members;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -140,7 +173,7 @@ class _BookCover extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _BookMosaic(photos: photos, bookName: book.name),
+                  _BookMosaic(photos: _photos, bookName: book.name),
                   // Diagonal fade: bright top-left → dark bottom-right.
                   const DecoratedBox(
                     decoration: BoxDecoration(

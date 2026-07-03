@@ -6,7 +6,7 @@ import '../blocs/settings/settings_event.dart';
 import '../blocs/settings/settings_state.dart';
 import '../theme/recipe_accents.dart';
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 /// iCloud sync. The enable/push/pull controls are the existing, functional
 /// SettingsBloc-backed sync (kept unchanged). The richer status view from the

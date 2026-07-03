@@ -11,9 +11,10 @@ import '../blocs/recipe/recipe_state.dart';
 import '../models/recipe.dart';
 import '../models/recipe_book.dart';
 import '../theme/recipe_accents.dart';
-import 'books_screen.dart' show createBook, recipesInBook;
+import '../widgets/prompt_text.dart';
+import 'books_screen.dart' show createBook, indexRecipesByBook, recipesInBook;
 
-const _brand = Color(0xFFF69021);
+const _brand = brandOrange;
 
 class BooksManagementScreen extends StatelessWidget {
   const BooksManagementScreen({super.key});
@@ -39,6 +40,7 @@ class BooksManagementScreen extends StatelessWidget {
               final recipes = recipeState is RecipeLoaded
                   ? recipeState.recipes
                   : <Recipe>[];
+              final byBook = indexRecipesByBook(recipes);
               return ListView(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 40),
                 children: [
@@ -114,8 +116,8 @@ class BooksManagementScreen extends StatelessWidget {
                             book: b,
                             index: i,
                             isLast: i == books.length - 1,
-                            count: recipesInBook(recipes, b.id).length,
-                            coverPath: _cover(recipes, b),
+                            count: (byBook[b.id] ?? const <Recipe>[]).length,
+                            coverPath: _cover(byBook, b),
                             onRemove: () => _delete(context, b, recipes),
                             onRename: () => _rename(context, b),
                           );
@@ -131,9 +133,9 @@ class BooksManagementScreen extends StatelessWidget {
     );
   }
 
-  String? _cover(List<Recipe> recipes, RecipeBook book) {
+  String? _cover(Map<String, List<Recipe>> byBook, RecipeBook book) {
     if (book.coverImagePath != null) return book.coverImagePath;
-    for (final r in recipesInBook(recipes, book.id)) {
+    for (final r in byBook[book.id] ?? const <Recipe>[]) {
       if (r.imagePath != null) return r.imagePath;
     }
     return null;
@@ -165,26 +167,11 @@ class BooksManagementScreen extends StatelessWidget {
   }
 
   Future<void> _rename(BuildContext context, RecipeBook book) async {
-    final ctrl = TextEditingController(text: book.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename book'),
-        content: TextField(controller: ctrl, autofocus: true),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: const Text('Save')),
-        ],
-      ),
-    );
-    final trimmed = name?.trim();
-    if (trimmed == null || trimmed.isEmpty || !context.mounted) return;
+    final name = await promptText(context, title: 'Rename book', initial: book.name);
+    if (name == null || !context.mounted) return;
     context.read<BookBloc>().add(UpdateBook(RecipeBook(
           id: book.id,
-          name: trimmed,
+          name: name,
           coverImagePath: book.coverImagePath,
           createdAt: book.createdAt,
         )));
