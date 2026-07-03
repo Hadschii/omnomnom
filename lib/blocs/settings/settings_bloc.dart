@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -56,7 +58,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         await _recipeRepository.disableSync();
       }
     } catch (e) {
-      print('SettingsBloc: Failed to initialize sync on load: $e');
+      log('Failed to initialize sync on load', name: 'SettingsBloc', error: e);
       actualSyncState = false; // Fallback to disabled if initialization fails
       syncError = e.toString().replaceAll('Exception: ', '');
     }

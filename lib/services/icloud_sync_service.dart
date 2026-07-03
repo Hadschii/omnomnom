@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 import 'package:icloud_storage/icloud_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/recipe.dart';
-import '../models/ingredient.dart';
-import '../models/instruction.dart';
+import 'recipe_codec.dart';
 import 'sync_service.dart';
+
+const _logName = 'ICloudSyncService';
 
 class ICloudSyncService implements SyncService {
   static const String _containerId = 'iCloud.com.example.omnomnom'; // TODO: Replace with actual container ID
@@ -27,7 +29,7 @@ class ICloudSyncService implements SyncService {
 
   @override
   Future<void> uploadRecipe(Recipe recipe) async {
-    final jsonMap = _recipeToJson(recipe);
+    final jsonMap = recipeToJson(recipe);
     final jsonString = jsonEncode(jsonMap);
     final fileName = '${recipe.id}.json';
     
@@ -79,14 +81,15 @@ class ICloudSyncService implements SyncService {
 
             final jsonString = await File(destPath).readAsString();
             final jsonMap = jsonDecode(jsonString);
-            recipes.add(_recipeFromJson(jsonMap));
+            recipes.add(recipeFromJson(jsonMap));
           } catch (e) {
-            print('Error downloading/parsing recipe ${file.relativePath}: $e');
+            log('Error downloading/parsing recipe ${file.relativePath}',
+                name: _logName, error: e);
           }
         }
       }
     } catch (e) {
-      print('Error gathering files: $e');
+      log('Error gathering files', name: _logName, error: e);
     }
     return recipes;
   }
@@ -118,57 +121,8 @@ class ICloudSyncService implements SyncService {
       );
       return localPath;
     } catch (e) {
-      print('Error downloading image $imageName: $e');
+      log('Error downloading image $imageName', name: _logName, error: e);
       return null;
     }
-  }
-
-  // Helper methods for JSON serialization (since Recipe model uses Hive)
-  Map<String, dynamic> _recipeToJson(Recipe recipe) {
-    return {
-      'id': recipe.id,
-      'title': recipe.title,
-      'ingredients': recipe.ingredients.map((e) => {
-        'name': e.name,
-        'amount': e.amount,
-        'group': e.group,
-      }).toList(),
-      'instructions': recipe.instructions.map((e) => {
-        'description': e.description,
-        'group': e.group,
-        'photoPath': e.photoPath?.split('/').last,
-      }).toList(),
-      'folderId': recipe.folderId,
-      'labels': recipe.labels,
-      'createdAt': recipe.createdAt.toIso8601String(),
-      'imagePath': recipe.imagePath?.split('/').last, // Store only filename
-      'servings': recipe.servings,
-      'prepTime': recipe.prepTime,
-      'cookTime': recipe.cookTime,
-    };
-  }
-
-  Recipe _recipeFromJson(Map<String, dynamic> json) {
-    return Recipe(
-      id: json['id'],
-      title: json['title'],
-      ingredients: (json['ingredients'] as List).map((e) => Ingredient(
-        name: e['name'],
-        amount: e['amount'],
-        group: e['group'],
-      )).toList(),
-      instructions: (json['instructions'] as List).map((e) => Instruction(
-        description: e['description'],
-        group: e['group'],
-        photoPath: e['photoPath'],
-      )).toList(),
-      folderId: json['folderId'],
-      labels: List<String>.from(json['labels']),
-      createdAt: DateTime.parse(json['createdAt']),
-      imagePath: json['imagePath'], // This will be just the filename, need to resolve path later or during download
-      servings: json['servings'],
-      prepTime: json['prepTime'],
-      cookTime: json['cookTime'],
-    );
   }
 }

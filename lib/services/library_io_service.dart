@@ -71,6 +71,7 @@ class LibraryIoService {
             'cookTime': r.cookTime,
             'labels': r.labels,
             'bookIds': r.bookIds,
+            'accentColor': r.accentColor,
             'createdAt': r.createdAt.toIso8601String(),
             'image': ref(r.imagePath),
             'ingredients': [
@@ -168,6 +169,7 @@ class LibraryIoService {
         cookTime: (r['cookTime'] as num?)?.toInt(),
         labels: (r['labels'] as List?)?.cast<String>() ?? const [],
         bookIds: newBookIds.isEmpty ? null : newBookIds,
+        accentColor: (r['accentColor'] as num?)?.toInt(),
         createdAt: when(r['createdAt']),
         imagePath: resolve(r['image']),
         ingredients: [

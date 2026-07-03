@@ -1,5 +1,6 @@
+import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
-import 'dart:async'; // Added for StreamController
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/recipe.dart';
 import '../models/ingredient.dart';
@@ -10,27 +11,26 @@ import '../services/google_drive_sync_service.dart';
 
 class RecipeRepository {
   static const String _boxName = 'recipes_v2';
+  static const String _metaBoxName = 'recipe_repo_meta';
+  static const String _seededKey = 'seeded_default_recipes';
   SyncService? _syncService;
-  bool _isSyncEnabled = false; // TODO: Persist this preference
+  // The persisted value of this flag lives in SettingsBloc's Hive box
+  // (`sync_enabled` key); SettingsBloc calls enableSync()/disableSync() on
+  // load to bring this in sync with the stored preference.
+  bool _isSyncEnabled = false;
 
-  // Added for sync completion events
   final _syncCompletedController = StreamController<DateTime>.broadcast();
   Stream<DateTime> get onSyncCompleted => _syncCompletedController.stream;
 
   Future<void> init() async {
     await Hive.openBox<Recipe>(_boxName);
     await _seedDefaultRecipes();
-    
+
     // Initialize Sync Service based on platform
     if (Platform.isIOS || Platform.isMacOS) {
       _syncService = ICloudSyncService();
     } else if (Platform.isAndroid) {
       _syncService = GoogleDriveSyncService();
-    }
-    
-    // TODO: Load sync enabled state from preferences
-    if (_isSyncEnabled && _syncService != null) {
-      await _syncService!.init();
     }
   }
 
@@ -50,28 +50,33 @@ class RecipeRepository {
       await op();
       _syncCompletedController.add(DateTime.now());
     } catch (e) {
-      print('RecipeRepository: cloud sync skipped (non-fatal): $e');
+      log('cloud sync skipped (non-fatal)', name: 'RecipeRepository', error: e);
     }
   }
 
   Future<void> addRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    await _trySync(() async {
-      await _syncService!.uploadRecipe(recipe);
-      if (recipe.imagePath != null) {
-        await _syncService!.uploadImage(recipe.imagePath!);
-      }
-    });
+    await _trySync(() => _uploadRecipeAndImages(recipe));
   }
 
   Future<void> updateRecipe(Recipe recipe) async {
     await _box.put(recipe.id, recipe);
-    await _trySync(() async {
-      await _syncService!.uploadRecipe(recipe);
-      if (recipe.imagePath != null) {
-        await _syncService!.uploadImage(recipe.imagePath!);
+    await _trySync(() => _uploadRecipeAndImages(recipe));
+  }
+
+  /// Uploads the recipe JSON plus its cover photo and every step photo. The
+  /// per-step photos were previously left out entirely, so a downloaded
+  /// recipe would reference step images that never made it to the cloud.
+  Future<void> _uploadRecipeAndImages(Recipe recipe) async {
+    await _syncService!.uploadRecipe(recipe);
+    if (recipe.imagePath != null) {
+      await _syncService!.uploadImage(recipe.imagePath!);
+    }
+    for (final step in recipe.instructions) {
+      if (step.photoPath != null) {
+        await _syncService!.uploadImage(step.photoPath!);
       }
-    });
+    }
   }
 
   Future<void> deleteRecipe(String id) async {
@@ -84,10 +89,10 @@ class RecipeRepository {
     await _box.clear();
   }
 
-  // Sync methods
+  // Sync methods. The enabled/disabled preference itself is persisted by
+  // SettingsBloc, which calls these on every app launch to restore state.
   Future<void> enableSync() async {
     _isSyncEnabled = true;
-    // TODO: Save preference
     if (_syncService != null) {
       await _syncService!.init();
       await syncFromCloud();
@@ -96,96 +101,86 @@ class RecipeRepository {
 
   Future<void> disableSync() async {
     _isSyncEnabled = false;
-    // TODO: Save preference
   }
 
   bool get isSyncEnabled => _isSyncEnabled;
 
+  /// Pulls every recipe from the cloud and merges it into the local box.
+  ///
+  /// This intentionally never clears the local box first: recipes created
+  /// locally since the last upload — which the cloud doesn't know about yet —
+  /// would otherwise be permanently deleted by a pull. Only recipe IDs that
+  /// exist in the cloud set are overwritten; anything local-only survives.
+  /// This is a stopgap until entities carry `updatedAt`/tombstones and a
+  /// proper last-write-wins merge can be done (see the sync plan doc).
   Future<void> syncFromCloud() async {
     if (_syncService == null) {
       throw Exception('Sync service is not initialized');
     }
 
-    try {
-      print('RecipeRepository: Downloading recipes from cloud...');
-      // 1. Download all recipes first (if this fails, the local DB is untouched)
-      final cloudRecipes = await _syncService!.downloadAllRecipes();
-      print('RecipeRepository: Downloaded ${cloudRecipes.length} recipes from cloud');
+    final cloudRecipes = await _syncService!.downloadAllRecipes();
 
-      // 2. Download and map images for recipes (if any download fails, local DB is still untouched)
-      final Map<String, String> downloadedImages = {};
-      for (final recipe in cloudRecipes) {
-        if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
-          try {
-            print('RecipeRepository: Downloading image for recipe ${recipe.title}: ${recipe.imagePath}');
-            final localImagePath = await _syncService!.downloadImage(recipe.imagePath!);
-            if (localImagePath != null) {
-              downloadedImages[recipe.id] = localImagePath;
-            }
-          } catch (e) {
-            print('RecipeRepository: Non-fatal error downloading image for ${recipe.title}: $e');
-            // Do not fail the whole sync if a single image fails to download
-          }
-        }
-      }
-
-      // 3. Wiping local and writing new data inside a safe local block
-      // At this stage, all remote data has been successfully fetched.
-      print('RecipeRepository: Committing downloaded data to local store...');
-      await _box.clear();
-      for (final recipe in cloudRecipes) {
-        final localImagePath = downloadedImages[recipe.id];
-        
-        final updatedRecipe = Recipe(
-          id: recipe.id,
-          title: recipe.title,
-          ingredients: recipe.ingredients,
-          instructions: recipe.instructions,
-          folderId: recipe.folderId,
-          labels: recipe.labels,
-          createdAt: recipe.createdAt,
-          imagePath: localImagePath ?? recipe.imagePath,
-          servings: recipe.servings,
-          prepTime: recipe.prepTime,
-          cookTime: recipe.cookTime,
-          bookIds: recipe.bookIds,
-        );
-        await _box.put(updatedRecipe.id, updatedRecipe);
-      }
-      
-      final now = DateTime.now();
-      _syncCompletedController.add(now);
-      print('RecipeRepository: Pull sync completed successfully');
-    } catch (e) {
-      print('RecipeRepository: Error during pull sync: $e');
-      rethrow; // Propagate exception to calling BLoC
+    for (final recipe in cloudRecipes) {
+      final resolved = await _resolveRecipeImages(recipe);
+      await _box.put(resolved.id, resolved);
     }
+
+    _syncCompletedController.add(DateTime.now());
+  }
+
+  /// Downloads the cover photo and every step photo for a recipe just pulled
+  /// from the cloud, replacing each remote basename with the resulting local
+  /// path. A failed image download is non-fatal — the recipe still syncs,
+  /// just without that photo.
+  Future<Recipe> _resolveRecipeImages(Recipe recipe) async {
+    Future<String?> resolve(String? remotePath) async {
+      if (remotePath == null || remotePath.isEmpty) return null;
+      try {
+        return await _syncService!.downloadImage(remotePath);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final imagePath = await resolve(recipe.imagePath) ?? recipe.imagePath;
+    final instructions = <Instruction>[];
+    for (final step in recipe.instructions) {
+      final photoPath = await resolve(step.photoPath) ?? step.photoPath;
+      instructions.add(Instruction(
+        description: step.description,
+        group: step.group,
+        groups: step.groups,
+        timerSeconds: step.timerSeconds,
+        photoPath: photoPath,
+      ));
+    }
+    return recipe.copyWith(imagePath: imagePath, instructions: instructions);
   }
 
   Future<void> syncToCloud() async {
     if (_syncService == null) {
       throw Exception('Sync service is not initialized');
     }
-    
-    try {
-      print('RecipeRepository: Uploading local recipes to cloud...');
-      final localRecipes = _box.values.toList();
-      for (final recipe in localRecipes) {
-        await _syncService!.uploadRecipe(recipe);
-        if (recipe.imagePath != null && recipe.imagePath!.isNotEmpty) {
-          await _syncService!.uploadImage(recipe.imagePath!);
-        }
-      }
-      _syncCompletedController.add(DateTime.now());
-      print('RecipeRepository: Push sync completed successfully');
-    } catch (e) {
-      print('RecipeRepository: Error during push sync: $e');
-      rethrow; // Propagate exception to calling BLoC
+
+    for (final recipe in _box.values) {
+      await _uploadRecipeAndImages(recipe);
     }
+    _syncCompletedController.add(DateTime.now());
   }
 
+  /// Seeds the sample recipe on a genuinely fresh install only. Without the
+  /// one-shot flag, a user who deletes every recipe would get the sample
+  /// recipe back on next launch, since "seed if the box is empty" can't tell
+  /// a fresh install apart from an intentionally emptied library.
   Future<void> _seedDefaultRecipes() async {
-    if (_box.isNotEmpty) return;
+    final metaBox = await Hive.openBox(_metaBoxName);
+    if (metaBox.get(_seededKey, defaultValue: false) == true) return;
+    if (_box.isNotEmpty) {
+      // Pre-existing data from before this flag was introduced.
+      await metaBox.put(_seededKey, true);
+      return;
+    }
+    await metaBox.put(_seededKey, true);
 
     final defaultRecipe = Recipe(
       id: 'default_orange_chocolate_cookies',
