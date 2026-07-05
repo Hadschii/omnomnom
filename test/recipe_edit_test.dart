@@ -7,6 +7,9 @@ import 'package:mocktail/mocktail.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_bloc.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_event.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_state.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_bloc.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_event.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_state.dart';
 import 'package:omnomnom_recipe_app/models/ingredient.dart';
 import 'package:omnomnom_recipe_app/models/instruction.dart';
 import 'package:omnomnom_recipe_app/models/recipe.dart';
@@ -14,6 +17,17 @@ import 'package:omnomnom_recipe_app/screens/recipe_edit_screen.dart';
 
 class MockRecipeBloc extends MockBloc<RecipeEvent, RecipeState>
     implements RecipeBloc {}
+
+class MockTagBloc extends MockBloc<TagEvent, TagState> implements TagBloc {}
+
+/// RecipeEditScreen reads TagBloc for the tag chips/picker; every pump needs
+/// one in the tree even though these tests don't exercise tagging directly.
+MockTagBloc _tagBloc() {
+  final bloc = MockTagBloc();
+  whenListen(bloc, const Stream<TagState>.empty(),
+      initialState: const TagLoaded([]));
+  return bloc;
+}
 
 void main() {
   setUpAll(() => registerFallbackValue(LoadRecipes()));
@@ -64,8 +78,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      BlocProvider<RecipeBloc>.value(
-        value: bloc,
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<RecipeBloc>.value(value: bloc),
+          BlocProvider<TagBloc>.value(value: _tagBloc()),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );
@@ -114,8 +131,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      BlocProvider<RecipeBloc>.value(
-        value: bloc,
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<RecipeBloc>.value(value: bloc),
+          BlocProvider<TagBloc>.value(value: _tagBloc()),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );
@@ -152,8 +172,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      BlocProvider<RecipeBloc>.value(
-        value: bloc,
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<RecipeBloc>.value(value: bloc),
+          BlocProvider<TagBloc>.value(value: _tagBloc()),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );

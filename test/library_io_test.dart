@@ -72,13 +72,15 @@ void main() {
     final json = service.buildJsonString(); // data only, no photos
     final summary = await service.importFromJsonString(json);
 
+    // bookRepo also seeds a "Favorites" book on init(), so the export/import
+    // covers that plus the one explicitly added here.
     expect(summary.recipes, 1);
-    expect(summary.books, 1);
+    expect(summary.books, 2);
     expect(summary.tags, 1);
 
     // Originals + imported copies coexist.
     expect(recipeRepo.getRecipes().length, 2);
-    expect(bookRepo.getBooks().length, 2);
+    expect(bookRepo.getBooks().length, 4);
     expect(tagRepo.getTags().length, 2);
 
     // The imported recipe is a new copy...
@@ -88,8 +90,12 @@ void main() {
     expect(copy.instructions.single.timerSeconds, 300);
     expect(copy.instructions.single.groups, ['Sauce']);
 
-    // ...and its bookIds point at the freshly created book, not the old one.
-    final newBook = bookRepo.getBooks().firstWhere((b) => b.id != 'book-old');
+    // ...and its bookIds point at the freshly created "Family" copy, not the
+    // old one (there's also a pre-existing and an imported "Favorites" book
+    // in play, so exclude both original ids rather than just 'book-old').
+    final newBook = bookRepo
+        .getBooks()
+        .firstWhere((b) => b.id != 'book-old' && b.name == 'Family');
     expect(copy.bookIds, [newBook.id]);
     expect(copy.bookIds, isNot(contains('book-old')));
   });

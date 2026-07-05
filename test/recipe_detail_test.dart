@@ -6,6 +6,12 @@ import 'package:mocktail/mocktail.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_bloc.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_event.dart';
 import 'package:omnomnom_recipe_app/blocs/recipe/recipe_state.dart';
+import 'package:omnomnom_recipe_app/blocs/settings/settings_bloc.dart';
+import 'package:omnomnom_recipe_app/blocs/settings/settings_event.dart';
+import 'package:omnomnom_recipe_app/blocs/settings/settings_state.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_bloc.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_event.dart';
+import 'package:omnomnom_recipe_app/blocs/tag/tag_state.dart';
 import 'package:omnomnom_recipe_app/models/ingredient.dart';
 import 'package:omnomnom_recipe_app/models/instruction.dart';
 import 'package:omnomnom_recipe_app/models/recipe.dart';
@@ -13,6 +19,26 @@ import 'package:omnomnom_recipe_app/screens/recipe_detail_screen.dart';
 
 class MockRecipeBloc extends MockBloc<RecipeEvent, RecipeState>
     implements RecipeBloc {}
+
+class MockTagBloc extends MockBloc<TagEvent, TagState> implements TagBloc {}
+
+class MockSettingsBloc extends MockBloc<SettingsEvent, SettingsState>
+    implements SettingsBloc {}
+
+/// RecipeDetailScreen reads TagBloc for tag pills/picker and SettingsBloc for
+/// the accent-from-photo toggle; every pump needs both in the tree.
+List<BlocProvider> _extraProviders() {
+  final tagBloc = MockTagBloc();
+  whenListen(tagBloc, const Stream<TagState>.empty(),
+      initialState: const TagLoaded([]));
+  final settingsBloc = MockSettingsBloc();
+  whenListen(settingsBloc, const Stream<SettingsState>.empty(),
+      initialState: const SettingsState());
+  return [
+    BlocProvider<TagBloc>.value(value: tagBloc),
+    BlocProvider<SettingsBloc>.value(value: settingsBloc),
+  ];
+}
 
 void main() {
   setUpAll(() => registerFallbackValue(LoadRecipes()));
@@ -46,8 +72,11 @@ void main() {
         initialState: RecipeLoaded([recipe]));
     await tester.pumpWidget(
       MaterialApp(
-        home: BlocProvider<RecipeBloc>.value(
-          value: bloc,
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<RecipeBloc>.value(value: bloc),
+            ..._extraProviders(),
+          ],
           child: const RecipeDetailScreen(
             recipeId: 'r1',
             showBackButton: false,
@@ -94,8 +123,11 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: BlocProvider<RecipeBloc>.value(
-          value: bloc,
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<RecipeBloc>.value(value: bloc),
+            ..._extraProviders(),
+          ],
           child: RecipeDetailScreen(
             recipeId: 'r1',
             showBackButton: false,
