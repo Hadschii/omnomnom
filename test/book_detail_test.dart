@@ -58,7 +58,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('lists the book members and flips to the social placeholder',
+  testWidgets('lists the book members and flips to the social tab',
       (tester) async {
     final recipeBloc = MockRecipeBloc();
     await pump(
@@ -74,10 +74,13 @@ void main() {
     expect(find.text('Chicken Paprika Noodles'), findsOneWidget);
     expect(find.text('Not in this book'), findsNothing); // not a member
 
-    // Flip to the social view (people icon) -> placeholder.
+    // Flip to the social view (people icon) -> real (honest, single-owner)
+    // sharing UI, not a generic placeholder card.
     await tester.tap(find.byIcon(Icons.people_alt_outlined));
     await tester.pump();
-    expect(find.textContaining('PLACEHOLDER'), findsOneWidget);
+    expect(find.text('Not shared yet'), findsOneWidget);
+    expect(find.text('Invite'), findsOneWidget);
+    expect(find.text('No activity yet'), findsOneWidget);
   });
 
   testWidgets('adding a recipe via manage updates its bookIds',

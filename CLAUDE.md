@@ -32,3 +32,5 @@ flutter analyze
 **Routing** — `go_router`; `context.go` for tab-level nav, `context.push` within sub-flows. Desktop two-pane layout uses `setState` on `MainScreen` instead of the router.
 
 **iCloud** — container ID `iCloud.com.example.omnomnom` is a placeholder; sync won't work until provisioned.
+
+**Design reference** — the source design (Claude design-tool export, "Recipe App - iOS Explorations") lives in this cloud environment at `/home/claude/repo/project/Recipe App - iOS Explorations.dc.html`, with its images in the sibling `assets/`/`uploads/` folders. It is not committed to the repo (ask the user to attach/commit it if a future session needs it and this path is gone). Most boards match the shipped UI closely; the ones that were still `PLACEHOLDER` as of 2026-07 — book social/members/activity, the invite share sheet, and cloud sync device/storage status — have since been implemented with honest (non-fabricated) data, since there's no account/backend system yet.

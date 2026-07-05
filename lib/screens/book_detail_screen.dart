@@ -63,7 +63,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                   Expanded(
                     child: _view == 0
                         ? _recipeList(context, members)
-                        : const _SocialPlaceholder(),
+                        : _socialTab(context, book),
                   ),
                 ],
               ),
@@ -441,6 +441,175 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       ),
     );
   }
+
+  // ---- Social tab (sharing preview) ---------------------------------------
+  //
+  // There is no account/backend system yet, so this reflects real (honest)
+  // state — the current device is always the sole owner, no collaborators,
+  // no activity — rather than fabricated example people. The Invite sheet
+  // and every action in it are visual previews; nothing here persists.
+
+  Widget _socialTab(BuildContext context, RecipeBook book) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 30),
+      children: [
+        _shareRow(context, book),
+        const SizedBox(height: 18),
+        const _SectionLabel('PEOPLE'),
+        const SizedBox(height: 8),
+        _peopleCard(),
+        const SizedBox(height: 18),
+        const _SectionLabel('RECENT ACTIVITY'),
+        const SizedBox(height: 8),
+        _activityCard(),
+      ],
+    );
+  }
+
+  Widget _shareRow(BuildContext context, RecipeBook book) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+      decoration: BoxDecoration(
+        color: cardColor(context),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 3),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+                color: _brand, shape: BoxShape.circle),
+            child: const Icon(Icons.person, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Not shared yet',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                SizedBox(height: 2),
+                Text('Invite people to cook along with you',
+                    style: TextStyle(fontSize: 12, color: metaGrey)),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _showInviteSheet(context, book),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: _brand,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Text('Invite',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _peopleCard() {
+    return Builder(builder: (context) {
+      return Container(
+        decoration: BoxDecoration(
+          color: cardColor(context),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                    color: _brand, shape: BoxShape.circle),
+                child: const Icon(Icons.person, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'You ',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    children: [
+                      TextSpan(
+                        text: '(this device)',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: metaGrey,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: subtleFill(context),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text('Owner',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: metaGrey)),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _activityCard() {
+    return Builder(builder: (context) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+        decoration: BoxDecoration(
+          color: cardColor(context),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.history, size: 34, color: Color(0xFFC7C7CC)),
+            const SizedBox(height: 10),
+            const Text('No activity yet',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text(
+              'What collaborators change will show up here once you share this book.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: metaGrey),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  void _showInviteSheet(BuildContext context, RecipeBook book) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => InviteSheet(book: book),
+    );
+  }
 }
 
 /// A checkbox row toggling a recipe's membership in a book.
@@ -474,41 +643,236 @@ class CheckboxRow extends StatelessWidget {
   }
 }
 
-class _SocialPlaceholder extends StatelessWidget {
-  const _SocialPlaceholder();
+/// Small uppercase section label (PEOPLE, RECENT ACTIVITY, ...).
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9B9B9B),
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w600)),
+      );
+}
+
+/// Shows a snackbar for an action that isn't backed by real functionality yet
+/// (sharing needs accounts, which don't exist in this local-only app).
+void _soon(BuildContext context, String what) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+        SnackBar(content: Text('$what — coming soon (PLACEHOLDER)')));
+}
+
+/// Invite sheet for sharing a book. There is no account/backend system yet,
+/// so every action here (copy link, permission choice, share channels) is a
+/// visual preview only — nothing is sent or persisted.
+class InviteSheet extends StatefulWidget {
+  final RecipeBook book;
+  const InviteSheet({super.key, required this.book});
+
+  @override
+  State<InviteSheet> createState() => _InviteSheetState();
+}
+
+class _InviteSheetState extends State<InviteSheet> {
+  bool _canEdit = true;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 36),
+    final book = widget.book;
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.only(top: 60),
+        decoration: BoxDecoration(
+          color: cardColor(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.groups_outlined, size: 56, color: Color(0xFFC7C7CC)),
-            const SizedBox(height: 14),
-            Text('Sharing & activity',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const Text(
-              'Members, per-person permissions, the invite sheet and the '
-              'activity feed live here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: metaGrey),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: hairline(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              child: const Text('PLACEHOLDER · coming in a later step',
-                  style: TextStyle(
-                      fontSize: 11, color: Color(0xFF8E8E93), letterSpacing: 0.5)),
+            ),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: book.coverImagePath != null
+                      ? Image.file(File(book.coverImagePath!),
+                          width: 46,
+                          height: 46,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              width: 46,
+                              height: 46,
+                              color: groupColor(book.name)))
+                      : Container(
+                          width: 46, height: 46, color: groupColor(book.name)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Share "${book.name}"',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w800)),
+                      const Text('Anyone you invite can cook along',
+                          style: TextStyle(fontSize: 13, color: metaGrey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              decoration: BoxDecoration(
+                color: subtleFill(context),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.link, color: _brand, size: 18),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Invite link',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text('Requires an account — coming soon',
+                            style: TextStyle(fontSize: 12, color: metaGrey)),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _soon(context, 'Invite links'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 13, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: cardColor(context),
+                        border: Border.all(color: hairline(context)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text('Copy',
+                          style: TextStyle(
+                              color: _brand,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const _SectionLabel('NEW PEOPLE CAN'),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(child: _permissionBox('Edit', 'add & change', true)),
+                const SizedBox(width: 8),
+                Expanded(child: _permissionBox('View only', 'cook & read', false)),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _channel(context, Icons.sms_outlined, 'Messages', const Color(0xFF34C759)),
+                _channel(context, Icons.mail_outline, 'Mail', const Color(0xFF0A84FF)),
+                _channel(context, Icons.more_horiz, 'More', subtleFill(context),
+                    iconColor: const Color(0xFF3A3A3C)),
+              ],
+            ),
+            const SizedBox(height: 22),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: _brand,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: const Text('Done',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _permissionBox(String title, String subtitle, bool isEdit) {
+    final selected = _canEdit == isEdit;
+    return GestureDetector(
+      onTap: () => setState(() => _canEdit = isEdit),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFDEEDE) : subtleFill(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected ? _brand : Colors.transparent, width: 1.5),
+        ),
+        child: Column(
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: selected ? const Color(0xFFB5701D) : metaGrey)),
+            Text(subtitle,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: selected
+                        ? const Color(0xFFC79B6A)
+                        : const Color(0xFFA0A0A5))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _channel(BuildContext context, IconData icon, String label, Color bg,
+      {Color iconColor = Colors.white}) {
+    return GestureDetector(
+      onTap: () => _soon(context, label),
+      child: Column(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(height: 7),
+          Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF6A6A6E))),
+        ],
       ),
     );
   }

@@ -10,8 +10,11 @@ import '../blocs/book/book_event.dart';
 import '../blocs/book/book_state.dart';
 import '../blocs/recipe/recipe_bloc.dart';
 import '../blocs/recipe/recipe_state.dart';
+import '../blocs/settings/settings_bloc.dart';
+import '../blocs/settings/settings_state.dart';
 import '../models/recipe.dart';
 import '../models/recipe_book.dart';
+import '../repositories/recipe_repository.dart';
 import '../theme/recipe_accents.dart';
 import '../widgets/prompt_text.dart';
 
@@ -67,29 +70,36 @@ class BooksScreen extends StatelessWidget {
               final recipes =
                   recipeState is RecipeLoaded ? recipeState.recipes : <Recipe>[];
               final byBook = indexRecipesByBook(recipes);
-              return GridView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 18,
-                  mainAxisExtent: 222,
-                ),
-                itemCount: books.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == books.length) {
-                    return _NewBookTile(onTap: () => createBook(context));
-                  }
-                  final book = books[index];
-                  final members = byBook[book.id] ?? const <Recipe>[];
-                  return _BookCover(
-                    key: ValueKey(book.id),
-                    book: book,
-                    members: members,
-                    onTap: () => context.push('/books/${book.id}'),
-                  );
-                },
+              return Column(
+                children: [
+                  const _SyncBanner(),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 18,
+                        mainAxisExtent: 222,
+                      ),
+                      itemCount: books.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == books.length) {
+                          return _NewBookTile(onTap: () => createBook(context));
+                        }
+                        final book = books[index];
+                        final members = byBook[book.id] ?? const <Recipe>[];
+                        return _BookCover(
+                          key: ValueKey(book.id),
+                          book: book,
+                          members: members,
+                          onTap: () => context.push('/books/${book.id}'),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           );
@@ -98,6 +108,73 @@ class BooksScreen extends StatelessWidget {
     );
   }
 
+}
+
+/// Green "all changes synced" banner shown above the books grid, matching the
+/// design's cloud-sync status pill. Only rendered when sync is actually
+/// enabled — reflects real SettingsBloc/RecipeRepository state, not a mock.
+class _SyncBanner extends StatelessWidget {
+  const _SyncBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final providerName = context.read<RecipeRepository>().syncProviderName;
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, s) {
+        if (!s.isSyncEnabled) return const SizedBox.shrink();
+        final syncing = s.syncStatus == SyncStatus.loading;
+        final failed = s.syncStatus == SyncStatus.failure;
+        final statusText = syncing
+            ? 'Syncing…'
+            : failed
+                ? 'Sync failed'
+                : s.lastSyncDate != null
+                    ? '$providerName · all changes synced'
+                    : '$providerName · waiting for first sync';
+        final color = failed ? const Color(0xFFC0492E) : const Color(0xFF2E8B57);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              color: failed
+                  ? color.withValues(alpha: 0.1)
+                  : const Color(0xFFEEF7EE),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  failed ? Icons.error_outline : Icons.check_circle_outline,
+                  size: 16,
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(statusText,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: color)),
+                ),
+                if (!syncing && s.lastSyncDate != null)
+                  Text(_relativeTime(s.lastSyncDate!),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF8AAB94))),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _relativeTime(DateTime d) {
+    final diff = DateTime.now().difference(d);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} h ago';
+    return '${diff.inDays} d ago';
+  }
 }
 
 /// Prompts for a name and creates a new (empty) book.

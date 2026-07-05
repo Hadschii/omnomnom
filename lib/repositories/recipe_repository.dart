@@ -36,6 +36,15 @@ class RecipeRepository {
 
   Box<Recipe> get _box => Hive.box<Recipe>(_boxName);
 
+  /// Human-readable name of the active cloud backend, for UI labels. Derived
+  /// from platform rather than hardcoded, since iOS/macOS use iCloud and
+  /// Android uses Google Drive (see [init]).
+  String get syncProviderName {
+    if (Platform.isIOS || Platform.isMacOS) return 'iCloud';
+    if (Platform.isAndroid) return 'Google Drive';
+    return 'Cloud';
+  }
+
   List<Recipe> getRecipes() {
     return _box.values.toList();
   }

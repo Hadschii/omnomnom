@@ -12,9 +12,8 @@ import 'package:omnomnom_recipe_app/blocs/settings/settings_bloc.dart';
 import 'package:omnomnom_recipe_app/blocs/settings/settings_event.dart';
 import 'package:omnomnom_recipe_app/blocs/settings/settings_state.dart';
 import 'package:omnomnom_recipe_app/models/recipe.dart';
-import 'package:omnomnom_recipe_app/models/recipe_book.dart';
 import 'package:omnomnom_recipe_app/repositories/recipe_repository.dart';
-import 'package:omnomnom_recipe_app/screens/books_screen.dart';
+import 'package:omnomnom_recipe_app/screens/sync_status_screen.dart';
 
 class MockRecipeBloc extends MockBloc<RecipeEvent, RecipeState>
     implements RecipeBloc {}
@@ -25,54 +24,61 @@ class MockSettingsBloc extends MockBloc<SettingsEvent, SettingsState>
     implements SettingsBloc {}
 
 void main() {
-  Recipe recipe(String id, String title, {List<String>? bookIds}) => Recipe(
-        id: id,
-        title: title,
-        ingredients: const [],
-        instructions: const [],
-        labels: const [],
-        createdAt: DateTime(2026, 6, 26),
-        bookIds: bookIds,
-      );
-
-  testWidgets('shelf shows a book cover with its real recipe count + New Book',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(500, 1000));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    final bookBloc = MockBookBloc();
-    whenListen(bookBloc, const Stream<BookState>.empty(),
-        initialState: BookLoaded([
-          RecipeBook(id: 'b1', name: 'Desserts', createdAt: DateTime(2026, 1, 1)),
-        ]));
+  Future<void> pump(WidgetTester tester, SettingsState state) async {
     final recipeBloc = MockRecipeBloc();
     whenListen(recipeBloc, const Stream<RecipeState>.empty(),
         initialState: RecipeLoaded([
-          recipe('r1', 'Cookies', bookIds: ['b1']),
-          recipe('r2', 'Cake', bookIds: ['b1']),
-          recipe('r3', 'Not in book'),
+          Recipe(
+            id: 'r1',
+            title: 'Soup',
+            ingredients: const [],
+            instructions: const [],
+            labels: const [],
+            createdAt: DateTime(2026, 1, 1),
+          ),
         ]));
+    final bookBloc = MockBookBloc();
+    whenListen(bookBloc, const Stream<BookState>.empty(),
+        initialState: const BookLoaded([]));
     final settingsBloc = MockSettingsBloc();
     whenListen(settingsBloc, const Stream<SettingsState>.empty(),
-        initialState: const SettingsState()); // sync off -> no banner
+        initialState: state);
 
     await tester.pumpWidget(MaterialApp(
       home: RepositoryProvider<RecipeRepository>(
         create: (_) => RecipeRepository(),
         child: MultiBlocProvider(
           providers: [
-            BlocProvider<BookBloc>.value(value: bookBloc),
             BlocProvider<RecipeBloc>.value(value: recipeBloc),
+            BlocProvider<BookBloc>.value(value: bookBloc),
             BlocProvider<SettingsBloc>.value(value: settingsBloc),
           ],
-          child: const BooksScreen(),
+          child: const SyncStatusScreen(),
         ),
       ),
     ));
     await tester.pump();
+  }
 
-    expect(find.text('Desserts'), findsOneWidget);
-    expect(find.text('2 recipes'), findsOneWidget); // r1 + r2, not r3
-    expect(find.text('New Book'), findsOneWidget);
+  testWidgets('sync off: no status card, devices section still honest',
+      (tester) async {
+    await pump(tester, const SettingsState());
+
+    expect(find.text('All changes synced'), findsNothing);
+    expect(find.text('This device'), findsOneWidget);
+    expect(find.text('Sync off'), findsOneWidget);
+  });
+
+  testWidgets('sync on with a last-synced date shows real counts',
+      (tester) async {
+    await pump(
+      tester,
+      SettingsState(isSyncEnabled: true, lastSyncDate: DateTime.now()),
+    );
+
+    expect(find.text('All changes synced'), findsOneWidget);
+    expect(find.textContaining('1 recipes, 0 books'), findsOneWidget);
+    expect(find.text('Up to date'), findsOneWidget);
+    expect(find.text('Sync now'), findsOneWidget);
   });
 }

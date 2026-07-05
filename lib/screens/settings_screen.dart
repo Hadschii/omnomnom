@@ -143,6 +143,21 @@ class SettingsScreen extends StatelessWidget {
             ),
           ]),
 
+          // PLACEHOLDER: sharing needs an account system that doesn't exist
+          // yet, so this always reads 0 — honest state, not a mock count.
+          _SectionHeader('SHARING'),
+          _Card(rows: [
+            _NavRow(
+              leadingColor: const Color(0xFF34C759),
+              leading:
+                  const Icon(Icons.people_outline, color: Colors.white, size: 17),
+              title: 'Shared with me',
+              trailing: const Text('0',
+                  style: TextStyle(fontSize: 15, color: metaGrey)),
+              onTap: () => _soon(context, 'Sharing'),
+            ),
+          ]),
+
           _SectionHeader('DATA'),
           _Card(rows: [
             _NavRow(
@@ -301,6 +316,7 @@ class SettingsScreen extends StatelessWidget {
 class _SyncSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final providerName = context.read<RecipeRepository>().syncProviderName;
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, s) {
         final on = s.isSyncEnabled;
@@ -309,7 +325,7 @@ class _SyncSummaryCard extends StatelessWidget {
             leadingColor: const Color(0xFF34A0E0),
             leading: const Icon(Icons.cloud_outlined,
                 color: Colors.white, size: 18),
-            title: 'iCloud Sync',
+            title: '$providerName Sync',
             subtitleWidget: Row(
               children: [
                 Container(
